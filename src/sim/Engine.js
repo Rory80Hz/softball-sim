@@ -232,10 +232,7 @@ export class SimulationEngine {
 
         if (this.ball.mode === 'throw') {
             const available = this.fielders.filter(f => f.active && !f.manualTarget);
-            const allowedPositions = this.receiverPositions(this.pendingThrow?.baseName);
-            const receiver = available
-                .filter(f => allowedPositions.includes(f.positionName))
-                .sort((a, b) => this.timeToBall(a, this.ball.throwTarget) - this.timeToBall(b, this.ball.throwTarget))[0];
+            const receiver = this.selectThrowReceiver(this.pendingThrow, available);
             available.forEach(fielder => {
                 fielder.isCaller = fielder === receiver;
                 if (fielder === receiver) {
@@ -604,25 +601,27 @@ export class SimulationEngine {
     }
 
     findBaseReceiver(pendingThrow) {
-        const allowedPositions = this.receiverPositions(pendingThrow.baseName);
-        return this.fielders.find(fielder => (
-            fielder.active &&
-            fielder !== pendingThrow.fielder &&
-            allowedPositions.includes(fielder.positionName) &&
-            Math.hypot(
-                fielder.pos.x - pendingThrow.target.x,
-                fielder.pos.y - pendingThrow.target.y
-            ) <= 4.5
+        const candidates = this.fielders.filter(fielder => (
+            fielder.active && fielder !== pendingThrow.fielder
         ));
+        const receiver = this.selectThrowReceiver(pendingThrow, candidates);
+        if (!receiver) return null;
+        return Math.hypot(
+            receiver.pos.x - pendingThrow.target.x,
+            receiver.pos.y - pendingThrow.target.y
+        ) <= 4.5 ? receiver : null;
     }
 
-    receiverPositions(baseName) {
-        return {
-            first: ['1B'],
-            second: ['2B', 'SS'],
-            third: ['3B'],
-            home: ['C'],
-        }[baseName] || [];
+    selectThrowReceiver(pendingThrow, candidates) {
+        return candidates
+            .filter(fielder => this.isInfielder(fielder.positionName))
+            .sort((a, b) => (
+                this.timeToBall(a, pendingThrow.target) - this.timeToBall(b, pendingThrow.target)
+            ))[0] || null;
+    }
+
+    isInfielder(position) {
+        return ['P', 'C', '1B', '2B', '3B', 'SS'].includes(position);
     }
 
     selectDefensivePlay(fielder) {
