@@ -119,6 +119,13 @@ export class Runner {
                 this.targetPos = null; // Reached end of current path
                 if (reachedHome && !this.hasScored) {
                     this.hasScored = true;
+                    this.status = 'scored';
+                    this.active = false;
+                    this.walkOffTarget = { x: this.pos.x < 0 ? -90 : 90, y: -45 };
+                    this.walkOffElapsed = 0;
+                    this.walkOffMode = 'scored';
+                    this.mesh.material.color.setHex(0xffd43b);
+                    this.label.material.color.setHex(0xffd43b);
                     if (this.onScore) this.onScore(this);
                 }
             }
@@ -137,6 +144,9 @@ export class Runner {
         const fadeProgress = Math.min(this.walkOffElapsed / 2, 1);
         this.mesh.material.opacity = 1 - fadeProgress;
         this.label.material.opacity = 1 - fadeProgress;
+        const bounce = this.walkOffMode === 'scored'
+            ? Math.abs(Math.sin(this.walkOffElapsed * Math.PI * 3)) * 2
+            : 0;
         const dx = this.walkOffTarget.x - this.pos.x;
         const dy = this.walkOffTarget.y - this.pos.y;
         const distance = Math.hypot(dx, dy);
@@ -155,6 +165,8 @@ export class Runner {
         this.pos.x += (dx / distance) * step;
         this.pos.y += (dy / distance) * step;
         this.updateMesh();
+        this.mesh.position.y += bounce;
+        this.label.position.y += bounce;
     }
 
 
