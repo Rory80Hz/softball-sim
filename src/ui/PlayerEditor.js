@@ -4,7 +4,7 @@ const ATTRIBUTE_FIELDS = [
     ['speed', 'Movement speed'],
     ['throwSpeed', 'Throw speed'],
     ['throwAccuracy', 'Throw accuracy'],
-    ['throwDistance', 'Throw distance'],
+    ['armStrength', 'Arm strength'],
     ['catchAccuracy', 'Catch / stop accuracy'],
     ['battingContact', 'Batting contact'],
     ['battingPower', 'Batting power'],
@@ -26,8 +26,8 @@ export class PlayerEditor {
         if (!team || !player) return;
 
         this.container.innerHTML = `
-            <section class="panel player-config">
-                <h2>Player Config</h2>
+            <details class="panel player-config">
+                <summary>Player Config</summary>
                 <label for="config-team">Team</label>
                 <select id="config-team">
                     ${teams.map((item, index) => `<option value="${index}" ${index === this.selectedTeam ? 'selected' : ''}>${item.name}</option>`).join('')}
@@ -48,7 +48,7 @@ export class PlayerEditor {
                         <input id="config-${key}" type="range" min="1" max="100" value="${player.attributes[key]}" />
                     `).join('')}
                 </div>
-            </section>
+            </details>
         `;
 
         this.container.querySelector('#config-team').addEventListener('change', event => {

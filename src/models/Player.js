@@ -4,7 +4,7 @@ export const DEFAULT_ATTRIBUTES = {
   speed: 55,
   throwSpeed: 55,
   throwAccuracy: 55,
-  throwDistance: 55,
+  armStrength: 55,
   catchAccuracy: 55,
   battingContact: 55,
   battingPower: 55,

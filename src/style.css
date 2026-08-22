@@ -156,6 +156,13 @@ body {
   margin-bottom: 8px;
 }
 
+.player-config summary {
+  cursor: pointer;
+  color: #fff;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
 .player-config label {
   margin-top: 6px;
 }

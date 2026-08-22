@@ -170,6 +170,19 @@ export function buildField(bounds) {
   group.add(chalkStrip([{ x: 0, y: 0 }, arcEndpoint(FIRST_ANGLE, FIELD.fenceDistance)], 0.25));
   group.add(chalkStrip([{ x: 0, y: 0 }, arcEndpoint(THIRD_ANGLE, FIELD.fenceDistance)], 0.25));
 
+  // Dead-ball lines: 15 feet into foul territory, parallel to each foul line.
+  const deadBallLine = (angle, outwardX, outwardY) => {
+    const offset = 15;
+    const start = { x: outwardX * offset, y: outwardY * offset };
+    const end = {
+      x: start.x + Math.cos(angle) * FIELD.fenceDistance,
+      y: start.y + Math.sin(angle) * FIELD.fenceDistance,
+    };
+    return chalkStrip([start, end], 0.2, 0xb8bec5, 0.04);
+  };
+  group.add(deadBallLine(FIRST_ANGLE, Math.SQRT1_2, -Math.SQRT1_2));
+  group.add(deadBallLine(THIRD_ANGLE, -Math.SQRT1_2, -Math.SQRT1_2));
+
   // --- Outfield fence / dead-ball line -----------------------------------
   group.add(chalkStrip(arcPoints(0, 0, FIELD.fenceDistance, FIRST_ANGLE, THIRD_ANGLE, 96), 0.4, 0x8a8a8a, 0.04));
 

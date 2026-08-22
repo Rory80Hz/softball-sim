@@ -47,6 +47,8 @@ export class ScenarioEditor {
             <select id="runner-option">
                 ${this.runnerOptions.map((option, index) => `<option value="${index}">${option.label}</option>`).join('')}
             </select>
+            <label for="batter-select" style="margin-top: 8px;">Batter</label>
+            <select id="batter-select"></select>
             <div style="display: flex; gap: 5px;">
                 <button class="btn primary icon-btn" id="btn-start" aria-label="Start play" title="Start play">&#9654;</button>
                 <button class="btn icon-btn" id="btn-pause" aria-label="Pause play" title="Pause play">&#10074;&#10074;</button>
@@ -71,6 +73,13 @@ export class ScenarioEditor {
         const hitType = this.el.querySelector('#hit-type');
         const hitLocation = this.el.querySelector('#hit-location');
         const runnerOption = this.el.querySelector('#runner-option');
+        const batterSelect = this.el.querySelector('#batter-select');
+        const battingTeam = this.engine.store.getTeams()[1];
+        batterSelect.innerHTML = battingTeam.players
+            .slice()
+            .sort((a, b) => a.battingOrder - b.battingOrder)
+            .map(player => `<option value="${player.id}">${player.number ?? player.battingOrder} - ${player.name}</option>`)
+            .join('');
         const resetScoreboard = () => {
             this.el.querySelector('#play-status').textContent = 'Runs: 0 | Outs: 0';
             this.el.querySelector('#event-ticker').replaceChildren();
@@ -85,19 +94,20 @@ export class ScenarioEditor {
         };
         
         // Initial load of scenario so players are in position before hit
-        this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption));
+        this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption, batterSelect));
 
         const rebuild = () => {
-            this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption));
+            this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption, batterSelect));
             resetScoreboard();
         };
         hitType.addEventListener('change', rebuild);
         hitLocation.addEventListener('change', rebuild);
         runnerOption.addEventListener('change', rebuild);
+        batterSelect.addEventListener('change', rebuild);
 
         this.el.querySelector('#btn-start').addEventListener('click', () => {
              // Reset first so if they click it mid-play or after a play, it restarts clean
-             this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption));
+             this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption, batterSelect));
              resetScoreboard();
              
              // Start the run
@@ -105,7 +115,7 @@ export class ScenarioEditor {
         });
 
         this.el.querySelector('#btn-reset').addEventListener('click', () => {
-             this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption));
+             this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption, batterSelect));
                resetScoreboard();
         });
         
@@ -154,11 +164,11 @@ export class ScenarioEditor {
         };
     }
 
-    getDefinition(hitType, hitLocation, runnerOption) {
+    getDefinition(hitType, hitLocation, runnerOption, batterSelect) {
         const location = this.hitLocations.find(([value]) => value === hitLocation.value);
         const selectedRunners = this.runnerOptions[Number(runnerOption.value)].bases;
         const baseOrder = ['first', 'second', 'third', 'home'];
-        const runners = [{ startPos: BASES.home, playerId: null }];
+        const runners = [{ startPos: BASES.home, playerId: batterSelect.value }];
         const runnerPaths = [baseOrder.map(base => BASES[base])];
 
         selectedRunners.forEach(base => {

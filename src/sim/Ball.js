@@ -15,13 +15,16 @@ export class Ball {
         this.velocity = { x: 0, y: 0, z: 0 };
         this.active = false;
         this.mode = 'idle';
+        this.hasLanded = false;
         this.carrier = null;
         this.onThrowComplete = null;
+        this.onDead = null;
     }
 
     hit(targetX, targetY, hitType = 'grounder', batterStats = null) {
         this.mode = 'hit';
         this.carrier = null;
+        this.hasLanded = hitType === 'grounder';
         this.pos = { x: 0, y: 0, z: 3 }; // stat 3 ft high (contact point)
         
         const contact = Number(batterStats?.battingContact) || 55;
@@ -79,27 +82,42 @@ export class Ball {
         this.updateMesh();
     }
 
-    throwTo(start, target, speed, accuracy = 100) {
+    throwTo(start, target, speed, accuracy = 100, maxDistance = Infinity, arcHeight = 7) {
         const dx = target.x - start.x;
         const dy = target.y - start.y;
         const distance = Math.hypot(dx, dy);
         const error = (100 - accuracy) / 100 * 8;
-        const finalTarget = {
+        const requestedTarget = {
             x: target.x + (Math.random() * 2 - 1) * error,
             y: target.y + (Math.random() * 2 - 1) * error,
+        };
+        const requestedDx = requestedTarget.x - start.x;
+        const requestedDy = requestedTarget.y - start.y;
+        const requestedDistance = Math.hypot(requestedDx, requestedDy);
+        const throwDistance = Math.min(requestedDistance, maxDistance);
+        const finalTarget = {
+            x: start.x + (requestedDx / (requestedDistance || 1)) * throwDistance,
+            y: start.y + (requestedDy / (requestedDistance || 1)) * throwDistance,
         };
         const finalDx = finalTarget.x - start.x;
         const finalDy = finalTarget.y - start.y;
         const finalDistance = Math.hypot(finalDx, finalDy) || 1;
 
+        const gravity = 32.2;
+        const minimumFlightTime = 2 * Math.sqrt((2 * arcHeight) / gravity);
+        const flightTime = Math.max(finalDistance / Math.max(speed, 1), minimumFlightTime);
+        const horizontalSpeed = finalDistance / flightTime;
+
         this.pos = { x: start.x, y: start.y, z: 4 };
         this.velocity = {
-            x: (finalDx / finalDistance) * speed,
-            y: (finalDy / finalDistance) * speed,
-            z: 0,
+            x: (finalDx / finalDistance) * horizontalSpeed,
+            y: (finalDy / finalDistance) * horizontalSpeed,
+            z: gravity * flightTime / 2,
         };
         this.throwTarget = finalTarget;
+        this.throwStart = { x: start.x, y: start.y };
         this.throwRemaining = finalDistance;
+        this.throwMissed = requestedDistance > maxDistance;
         this.mode = 'throw';
         this.carrier = null;
         this.active = true;
@@ -132,11 +150,13 @@ export class Ball {
             const distance = Math.hypot(this.velocity.x, this.velocity.y) * dt;
             this.pos.x += this.velocity.x * dt;
             this.pos.y += this.velocity.y * dt;
+            this.velocity.z -= 32.2 * dt;
+            this.pos.z += this.velocity.z * dt;
             this.throwRemaining -= distance;
             if (this.throwRemaining <= 0) {
                 this.pos.x = this.throwTarget.x;
                 this.pos.y = this.throwTarget.y;
-                this.pos.z = 0.5;
+                this.pos.z = 4;
                 this.velocity.x = 0;
                 this.velocity.y = 0;
                 this.active = false;
@@ -149,6 +169,7 @@ export class Ball {
 
         this.pos.x += this.velocity.x * dt;
         this.pos.y += this.velocity.y * dt;
+        if (this.mode === 'loose' && this.onDead && this.onDead()) return;
         // Gravity
         if (this.pos.z > 0 || this.velocity.z > 0) {
             this.velocity.z += -32.2 * dt;
@@ -157,6 +178,7 @@ export class Ball {
             if (this.pos.z <= 0) {
                 this.pos.z = 0;
                 this.velocity.z = 0; // stop bouncing for now, just roll
+                this.hasLanded = true;
             }
         }
         

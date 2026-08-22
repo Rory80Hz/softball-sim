@@ -51,6 +51,7 @@ export class Fielder {
     }
 
     moveTo(x, y) {
+        if (this.hasBall) return;
         this.targetPos = { x, y };
     }
 
@@ -60,7 +61,7 @@ export class Fielder {
     }
 
     update(dt) {
-        if (!this.active || !this.targetPos) return;
+        if (!this.active || this.hasBall || !this.targetPos) return;
 
         const dx = this.targetPos.x - this.pos.x;
         const dy = this.targetPos.y - this.pos.y;
