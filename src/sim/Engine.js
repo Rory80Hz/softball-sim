@@ -152,7 +152,9 @@ export class SimulationEngine {
 
     update(dt) {
         if(this.state !== 'playing') {
-            this.runners.forEach(runner => runner.update(dt));
+            if (this.state === 'idle') {
+                this.runners.forEach(runner => runner.updateWalkOff(dt));
+            }
             return;
         }
         
@@ -172,6 +174,7 @@ export class SimulationEngine {
 
             for(let f of this.fielders) {
                 if(!f.active) continue;
+                if (!f.isCaller) continue;
                 
                 // Prevent catcher from instantly intercepting hits while over the plate
                 if (f.positionName === 'C' && distFromHome < 15) continue;

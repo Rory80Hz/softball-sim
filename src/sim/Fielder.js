@@ -54,6 +54,7 @@ export class Fielder {
     moveTo(x, y, canMoveWithBall = false) {
         if (this.hasBall && !canMoveWithBall) return;
         this.canMoveWithBall = canMoveWithBall;
+        if (this.targetPos && Math.hypot(this.targetPos.x - x, this.targetPos.y - y) < 0.75) return;
         this.targetPos = { x, y };
     }
 

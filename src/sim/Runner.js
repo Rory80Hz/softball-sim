@@ -89,37 +89,7 @@ export class Runner {
 
     update(dt) {
         if (this.walkOffTarget) {
-            this.walkOffElapsed += dt;
-            const fadeProgress = Math.min(this.walkOffElapsed / 2, 1);
-            this.mesh.material.opacity = 1 - fadeProgress;
-            this.label.material.opacity = 1 - fadeProgress;
-            const dx = this.walkOffTarget.x - this.pos.x;
-            const dy = this.walkOffTarget.y - this.pos.y;
-            const distance = Math.hypot(dx, dy);
-            if (distance <= 0.5) {
-                this.walkOffTarget = null;
-                this.mesh.visible = false;
-                this.scene.remove(this.mesh);
-                this.scene.remove(this.label);
-                this.mesh.geometry.dispose();
-                this.mesh.material.dispose();
-                this.label.material.map.dispose();
-                this.label.material.dispose();
-            } else if (this.walkOffElapsed >= 2) {
-                this.walkOffTarget = null;
-                this.mesh.visible = false;
-                this.scene.remove(this.mesh);
-                this.scene.remove(this.label);
-                this.mesh.geometry.dispose();
-                this.mesh.material.dispose();
-                this.label.material.map.dispose();
-                this.label.material.dispose();
-            } else {
-                const step = Math.min((this.moveSpeed * 0.45) * dt, distance);
-                this.pos.x += (dx / distance) * step;
-                this.pos.y += (dy / distance) * step;
-                this.updateMesh();
-            }
+            this.updateWalkOff(dt);
             return;
         }
 
@@ -156,6 +126,32 @@ export class Runner {
             this.pos.y += (dy / dist) * step;
         }
         
+        this.updateMesh();
+    }
+
+    updateWalkOff(dt) {
+        if (!this.walkOffTarget) return;
+        this.walkOffElapsed += dt;
+        const fadeProgress = Math.min(this.walkOffElapsed / 2, 1);
+        this.mesh.material.opacity = 1 - fadeProgress;
+        this.label.material.opacity = 1 - fadeProgress;
+        const dx = this.walkOffTarget.x - this.pos.x;
+        const dy = this.walkOffTarget.y - this.pos.y;
+        const distance = Math.hypot(dx, dy);
+        if (distance <= 0.5 || this.walkOffElapsed >= 2) {
+            this.walkOffTarget = null;
+            this.mesh.visible = false;
+            this.scene.remove(this.mesh);
+            this.scene.remove(this.label);
+            this.mesh.geometry.dispose();
+            this.mesh.material.dispose();
+            this.label.material.map.dispose();
+            this.label.material.dispose();
+            return;
+        }
+        const step = Math.min((this.moveSpeed * 0.45) * dt, distance);
+        this.pos.x += (dx / distance) * step;
+        this.pos.y += (dy / distance) * step;
         this.updateMesh();
     }
 
