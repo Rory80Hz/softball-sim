@@ -177,6 +177,8 @@ Each runner's movement speed MUST be derived from that runner's own `speed` attr
 
 A runner MUST follow base paths in order and may continue through all remaining bases to home.
 
+After safely reaching a base, a runner SHOULD continue only when the next base is likely to be reached before the defense can cover it. Otherwise, the runner MUST hold at the safe base rather than blindly continuing.
+
 When a runner reaches home:
 
 - The runner is marked scored.
@@ -229,6 +231,8 @@ When all runners in the current play are out, the play MUST stop.
 Every fielder MUST use their own movement speed and position. AI decisions MUST be based on the ball's current or projected position, not only the configured hit target.
 
 At most one fielder may be the primary caller/pursuer for a ball at a time. The caller SHOULD be the available fielder with the shortest estimated time to reach the ball or projected landing point. Estimated time MUST account for distance and that fielder's movement speed.
+
+When the ball is secured, the defense SHOULD choose the easiest available out: a force play when a runner is forced and the base can be covered in time, otherwise a tag only when the ball-carrying fielder is already close enough; otherwise the defense should contain the runner at the next base.
 
 ### 9.2 Position responsibilities
 

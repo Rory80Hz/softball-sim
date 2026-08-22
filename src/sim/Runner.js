@@ -4,8 +4,10 @@ import { BASES } from '../constants.js';
 
 export class Runner {
     constructor(scene, player, role = 'runner') {
+        this.scene = scene;
         this.player = player;
         this.role = role;
+        this.status = 'active';
         this.active = true;
         this.currentBase = null; // null = home plate (batter), 'first', 'second', 'third'
 
@@ -44,8 +46,11 @@ export class Runner {
         this.path = []; // list of points to run to
         this.hasScored = false;
         this.isOut = false;
+        this.walkOffTarget = null;
+        this.walkOffElapsed = 0;
         this.onScore = null;
         this.onOut = null;
+        this.onBaseReached = null;
         const speedAttribute = Number(this.player.attributes.speed) || 1;
         this.moveSpeed = 10 + (speedAttribute / 100) * 10;
     }
@@ -69,14 +74,55 @@ export class Runner {
     markOut() {
         if (this.isOut || this.hasScored) return;
         this.isOut = true;
+        this.status = 'out';
         this.active = false;
         this.targetPos = null;
         this.path = [];
+        this.walkOffTarget = { x: this.pos.x < 0 ? -90 : 90, y: -45 };
+        this.walkOffElapsed = 0;
         this.mesh.material.color.setHex(0x777777);
+        this.mesh.material.transparent = true;
+        this.label.material.color.setHex(0x777777);
+        this.label.material.transparent = true;
         if (this.onOut) this.onOut(this);
     }
 
     update(dt) {
+        if (this.walkOffTarget) {
+            this.walkOffElapsed += dt;
+            const fadeProgress = Math.min(this.walkOffElapsed / 2, 1);
+            this.mesh.material.opacity = 1 - fadeProgress;
+            this.label.material.opacity = 1 - fadeProgress;
+            const dx = this.walkOffTarget.x - this.pos.x;
+            const dy = this.walkOffTarget.y - this.pos.y;
+            const distance = Math.hypot(dx, dy);
+            if (distance <= 0.5) {
+                this.walkOffTarget = null;
+                this.mesh.visible = false;
+                this.scene.remove(this.mesh);
+                this.scene.remove(this.label);
+                this.mesh.geometry.dispose();
+                this.mesh.material.dispose();
+                this.label.material.map.dispose();
+                this.label.material.dispose();
+            } else if (this.walkOffElapsed >= 2) {
+                this.walkOffTarget = null;
+                this.mesh.visible = false;
+                this.scene.remove(this.mesh);
+                this.scene.remove(this.label);
+                this.mesh.geometry.dispose();
+                this.mesh.material.dispose();
+                this.label.material.map.dispose();
+                this.label.material.dispose();
+            } else {
+                const step = Math.min((this.moveSpeed * 0.45) * dt, distance);
+                this.pos.x += (dx / distance) * step;
+                this.pos.y += (dy / distance) * step;
+                this.updateMesh();
+            }
+            return;
+        }
+
         if (!this.active || !this.targetPos) return;
 
         const dx = this.targetPos.x - this.pos.x;
@@ -92,6 +138,7 @@ export class Runner {
                 this.currentBase = reachedBase;
                 this.lastSafePosition = { x: this.pos.x, y: this.pos.y };
                 this.passedBases.add(reachedBase);
+                if (this.onBaseReached) this.onBaseReached(this, reachedBase);
             }
             
             if (this.path.length > 0) {
@@ -114,6 +161,17 @@ export class Runner {
 
 
     returnToBase() {
+        this.targetPos = { ...this.lastSafePosition };
+        this.path = [];
+    }
+
+    returnToNamedBase(baseName) {
+        if (!BASES[baseName]) return;
+        this.targetPos = { ...BASES[baseName] };
+        this.path = [];
+    }
+
+    settleAtSafeBase() {
         this.pos = { ...this.lastSafePosition };
         this.targetPos = null;
         this.path = [];
@@ -121,7 +179,15 @@ export class Runner {
     }
 
     hasPassedBase(baseName) {
-        return this.passedBases.has(baseName) || this.currentBase === baseName;
+        if (this.passedBases.has(baseName) || this.currentBase === baseName) return true;
+
+        const baseOrder = ['home', 'first', 'second', 'third'];
+        const currentIndex = baseOrder.indexOf(this.currentBase);
+        const baseIndex = baseOrder.indexOf(baseName);
+        const targetBase = this.targetPos ? this.baseNameAtPosition(this.targetPos) : null;
+        const targetIndex = baseOrder.indexOf(targetBase);
+        return (currentIndex >= 0 && baseIndex >= 0 && currentIndex > baseIndex)
+            || (targetIndex >= 0 && baseIndex >= 0 && targetIndex > baseIndex);
     }
 
     baseNameAtPosition(position) {

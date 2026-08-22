@@ -50,10 +50,11 @@ export class ScenarioEditor {
             <label for="batter-select" style="margin-top: 8px;">Batter</label>
             <select id="batter-select"></select>
             <div style="display: flex; gap: 5px;">
-                <button class="btn primary icon-btn" id="btn-start" aria-label="Start play" title="Start play">&#9654;</button>
+                <button class="btn primary icon-btn" id="btn-start" aria-label="Start hit and run" title="Start hit and run">&#127951;</button>
                 <button class="btn icon-btn" id="btn-pause" aria-label="Pause play" title="Pause play">&#10074;&#10074;</button>
                 <button class="btn icon-btn" id="btn-resume" aria-label="Resume play" title="Resume play">&#9654;</button>
                 <button class="btn danger icon-btn" id="btn-reset" aria-label="Reset play" title="Reset play">&#8635;</button>
+                <button class="btn icon-btn" id="btn-time" aria-label="Call time and end play" title="Call time and end play">&#9200;</button>
             </div>
             <p id="play-status" style="margin: 10px 0 0; color: var(--text-dim);">Runs: 0 | Outs: 0</p>
             <div id="event-ticker" class="event-ticker" aria-live="polite"></div>
@@ -61,9 +62,9 @@ export class ScenarioEditor {
             <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 10px;">
                 <label>Camera Controls</label>
                 <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 5px;">
-                    <button class="btn icon-btn" id="btn-cam-top" aria-label="Top view" title="Top view">&#8862;</button>
-                    <button class="btn icon-btn" id="btn-cam-3d" aria-label="3D view" title="3D view">&#9670;</button>
+                    <button class="btn icon-btn" id="btn-cam-3d" aria-label="Reset 3D view" title="Reset 3D view">&#9670;</button>
                 </div>
+                <output id="camera-status" class="camera-status" aria-live="polite">3D view</output>
             </div>
             
         `;
@@ -122,28 +123,24 @@ export class ScenarioEditor {
         this.el.querySelector('#btn-pause').addEventListener('click', () => this.engine.pause());
 
         this.el.querySelector('#btn-resume').addEventListener('click', () => this.engine.resume());
+        this.el.querySelector('#btn-time').addEventListener('click', () => this.engine.endPlay());
 
-        // Camera Controls
-        this.el.querySelector('#btn-cam-top').addEventListener('click', () => {
-             const scene = this.engine.scene;
-             const camera = scene.parentCamera; // we need to expose this, actually FieldScene owns camera
-             if (window.appScene) {
-                 window.appScene.camera.position.set(window.appScene.viewCenter.x, 260, window.appScene.viewCenter.z);
-                 window.appScene.camera.up.set(0, 0, -1);
-                 window.appScene.camera.lookAt(window.appScene.viewCenter.x, 0, window.appScene.viewCenter.z);
-                 window.appScene.controls.target.set(window.appScene.viewCenter.x, 0, window.appScene.viewCenter.z);
-             }
-        });
-        
         this.el.querySelector('#btn-cam-3d').addEventListener('click', () => {
              if (window.appScene) {
-                 // Move camera low behind home plate, looking out to center field
-                 window.appScene.camera.position.set(0, 30, 80); 
-                 window.appScene.camera.up.set(0, 1, 0); // Need standard Y-up for 3D perspective
-                 window.appScene.camera.lookAt(0, 0, -150); // Look towards second base / CF
-                 window.appScene.controls.target.set(0, 0, -150);
+                 window.appScene.reset3DView();
              }
         });
+        if (window.appScene) {
+            window.appScene.onFrame(() => {
+                const camera = window.appScene.camera;
+                const height = Math.round(camera.position.y);
+                const elevation = Math.round(Math.atan2(
+                    camera.position.y,
+                    Math.hypot(camera.position.x - window.appScene.controls.target.x, camera.position.z - window.appScene.controls.target.z)
+                ) * 180 / Math.PI);
+                this.el.querySelector('#camera-status').textContent = `3D view | height ${height} ft | elevation ${elevation} deg`;
+            });
+        }
 
         this.engine.onEvent = (e) => {
             if (e.type === 'play_started') addTickerEvent(`Hit: ${e.hitType.replace('_', ' ')} toward the configured location`);
@@ -151,6 +148,7 @@ export class ScenarioEditor {
             if (e.type === 'ball_collected') addTickerEvent(`${e.fielder.positionName} fields the ball`);
             if (e.type === 'ball_thrown') addTickerEvent(`${e.fielder.positionName} throws to ${e.playType === 'force' ? 'the base' : 'contain the runner'}`);
             if (e.type === 'runner_cut_off') addTickerEvent(`Runner cut off at ${e.baseName}`);
+            if (e.type === 'runner_held') addTickerEvent(`Runner holds at ${e.baseName}`);
             if (e.type === 'tag_attempt') addTickerEvent(`${e.fielder.positionName} attempts a tag`);
             if (e.type === 'run_scored') {
                 this.el.querySelector('#play-status').textContent = `Runs: ${e.score} | Outs: ${this.engine.outs}`;

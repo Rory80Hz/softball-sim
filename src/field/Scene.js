@@ -37,34 +37,24 @@ export class FieldScene {
     const centerY = (maxY + minY) / 2;
     this.viewCenter = toWorld(centerX, centerY);
 
-    // Create a semi-transparent bounding box to visualize the limits in 3D
+    // Create an outline bounding box to visualize the limits in 3D
     const boundaryGeo = new THREE.BoxGeometry(maxX - minX, 100, maxY - minY);
-    const boundaryMat = new THREE.MeshBasicMaterial({ 
-        color: 0x87CEEB, 
-        transparent: true, 
-        opacity: 0.15, 
-        side: THREE.BackSide, // map to the inside walls
-        depthWrite: false
-    });
-    const boundaryBox = new THREE.Mesh(boundaryGeo, boundaryMat);
-    boundaryBox.position.set(centerX, 50, -centerY); // Center Y up 50ft (100/2)
-    this.scene.add(boundaryBox);
-
-    // Add wireframe edges for crisp corners
     const boundaryEdges = new THREE.EdgesGeometry(boundaryGeo);
     const boundaryLines = new THREE.LineSegments(boundaryEdges, new THREE.LineBasicMaterial({ 
         color: 0xffffff, 
         transparent: true, 
         opacity: 0.2 
     }));
-    boundaryLines.position.copy(boundaryBox.position);
+    boundaryLines.position.set(centerX, 50, -centerY);
     this.scene.add(boundaryLines);
 
 
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
-    this.camera.position.set(this.viewCenter.x, 260, this.viewCenter.z);
-    this.camera.up.set(0, 0, -1);
-    this.camera.lookAt(this.viewCenter.x, 0, this.viewCenter.z);
+    this.camera.position.set(this.viewCenter.x, 180, this.viewCenter.z + 250);
+    this.camera.zoom = 1.2;
+    this.camera.up.set(0, 1, 0);
+    this.controlsTarget = new THREE.Vector3(this.viewCenter.x, 0, this.viewCenter.z);
+    this.camera.lookAt(this.controlsTarget);
 
         
 
@@ -78,6 +68,7 @@ export class FieldScene {
     this.controls.enableRotate = true;
     this.controls.maxPolarAngle = Math.PI / 2.1; // dont go under the field
     this.controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+    this.controls.target.copy(this.controlsTarget);
 
     this.viewHelper = new ViewHelper(this.camera, this.renderer.domElement);
     this.viewHelper.center.copy(this.controls.target);
@@ -127,6 +118,15 @@ export class FieldScene {
   onFrame(fn) {
     this._animateCallbacks.add(fn);
     return () => this._animateCallbacks.delete(fn);
+  }
+
+  reset3DView() {
+    this.camera.position.set(this.viewCenter.x, 180, this.viewCenter.z + 250);
+    this.camera.zoom = 1.2;
+    this.camera.up.set(0, 1, 0);
+    this.controls.target.copy(this.controlsTarget);
+    this.camera.lookAt(this.controls.target);
+    this.controls.update();
   }
 
   _tick() {

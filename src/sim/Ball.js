@@ -129,6 +129,7 @@ export class Ball {
         this.carrier = fielder;
         this.active = false;
         this.mode = 'held';
+        this.mesh.visible = true;
         this.pos = { ...fielder.pos, z: 4 };
         this.updateMesh();
     }
