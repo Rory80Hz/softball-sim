@@ -79,7 +79,6 @@ export class Ball {
         if (!this.active) return;
         this.pos.x += this.velocity.x * dt;
         this.pos.y += this.velocity.y * dt;
-        
         // Gravity
         if (this.pos.z > 0 || this.velocity.z > 0) {
             this.velocity.z += -32.2 * dt;
@@ -88,6 +87,17 @@ export class Ball {
             if (this.pos.z <= 0) {
                 this.pos.z = 0;
                 this.velocity.z = 0; // stop bouncing for now, just roll
+            }
+        }
+        
+        // Ground Friction
+        if (this.pos.z <= 0) {
+            const friction = 35; // ft/s^2 deceleration
+            const speed = Math.hypot(this.velocity.x, this.velocity.y);
+            if (speed > 0) {
+                const newSpeed = Math.max(0, speed - friction * dt);
+                this.velocity.x = (this.velocity.x / speed) * newSpeed;
+                this.velocity.y = (this.velocity.y / speed) * newSpeed;
             }
         }
         

@@ -47,7 +47,8 @@ export class FieldScene {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(this.renderer.domElement);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableRotate = false;
+    this.controls.enableRotate = true;
+    this.controls.maxPolarAngle = Math.PI / 2.1; // dont go under the field
     this.controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.NONE };
 
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.75));

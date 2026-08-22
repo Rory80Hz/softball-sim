@@ -117,13 +117,20 @@ export class SimulationEngine {
         this.ball.update(dt);
         this.runners.forEach(r => r.update(dt));
         this.fielders.forEach(f => f.update(dt));
-        
         // Simple check: did a fielder reached the ball?
         if (this.ball.active) {
+            const distFromHome = Math.hypot(this.ball.pos.x, this.ball.pos.y);
+
             for(let f of this.fielders) {
                 if(!f.active) continue;
-                const distToBall = Math.hypot(f.pos.x - this.ball.pos.x, f.pos.y - this.ball.pos.y);
-                if (distToBall < 3) {
+                
+                // Prevent catcher from instantly intercepting hits while over the plate
+                if (f.positionName === 'C' && distFromHome < 15) continue;
+
+                const fielderZ = 4; // Fielder is at height 4ft
+
+                const distToBall = Math.hypot(f.pos.x - this.ball.pos.x, f.pos.y - this.ball.pos.y, fielderZ - this.ball.pos.z);
+                if (distToBall < 4.5) { // 4.5ft realistic reach radius
                     f.mesh.material.color.setHex(0x33ff33);
                     this.handleBallCaught(f);
                     break;

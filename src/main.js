@@ -5,6 +5,7 @@ const app = document.getElementById('app');
 app.innerHTML = '<div id="view-root"><div id="field-test" style="width:100%;height:100vh;"></div></div>';
 const container = document.getElementById('field-test');
 const scene = new FieldScene(container);
+window.appScene = scene; // Expose for UI camera manipulation
 import { ScenarioEditor } from "./ui/ScenarioEditor.js";
 const editorContainer = document.createElement("div");
 editorContainer.style.position = "absolute";

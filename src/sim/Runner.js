@@ -61,6 +61,6 @@ export class Runner {
 
     updateMesh() {
         const worldPos = toWorld(this.pos.x, this.pos.y);
-        this.mesh.position.set(worldPos.x, 3, worldPos.z);
+        this.mesh.position.set(worldPos.x, 4, worldPos.z);
     }
 }

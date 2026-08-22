@@ -58,6 +58,6 @@ export class Fielder {
 
     updateMesh() {
         const worldPos = toWorld(this.pos.x, this.pos.y);
-        this.mesh.position.set(worldPos.x, 3, worldPos.z); // y=3 so it sits on ground
+        this.mesh.position.set(worldPos.x, 4, worldPos.z); // y=3 so it sits on ground
     }
 }
