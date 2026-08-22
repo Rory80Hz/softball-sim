@@ -7,6 +7,7 @@ export class Fielder {
         this.player = player;
         this.active = true;
         this.hasBall = false;
+        this.canMoveWithBall = false;
         this.isCaller = false;
         
         // Use a simple box or cylinder for a player for now
@@ -50,8 +51,9 @@ export class Fielder {
         this.updateMesh();
     }
 
-    moveTo(x, y) {
-        if (this.hasBall) return;
+    moveTo(x, y, canMoveWithBall = false) {
+        if (this.hasBall && !canMoveWithBall) return;
+        this.canMoveWithBall = canMoveWithBall;
         this.targetPos = { x, y };
     }
 
@@ -61,7 +63,7 @@ export class Fielder {
     }
 
     update(dt) {
-        if (!this.active || this.hasBall || !this.targetPos) return;
+        if (!this.active || (this.hasBall && !this.canMoveWithBall) || !this.targetPos) return;
 
         const dx = this.targetPos.x - this.pos.x;
         const dy = this.targetPos.y - this.pos.y;

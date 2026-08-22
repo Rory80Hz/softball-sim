@@ -444,10 +444,12 @@ export class SimulationEngine {
     handleBallCaught(fielder) {
         this.ball.active = false;
         fielder.targetPos = null;
+        fielder.canMoveWithBall = false;
         this.fielders.forEach(candidate => {
             candidate.hasBall = candidate === fielder;
         });
         this.ball.setCarrier(fielder);
+        fielder.canMoveWithBall = true;
         fielder.mesh.material.color.setHex(0x33ff33);
         if (this.onEvent) this.onEvent({ type: 'ball_collected', fielder });
 
@@ -466,7 +468,7 @@ export class SimulationEngine {
         const forced = play?.forced || false;
         const baseName = play?.baseName || 'home';
         if (runner && this.isWellPositionedForTag(fielder, runner)) {
-            this.pendingTag = { runner, fielder };
+            this.pendingTag = { runner, fielder, baseName };
             this.pendingThrow = null;
             fielder.moveTo(runner.pos.x, runner.pos.y);
             if (this.onEvent) this.onEvent({ type: 'tag_attempt', fielder, runner });
@@ -506,6 +508,7 @@ export class SimulationEngine {
 
         this.fielders.forEach(fielder => {
             fielder.hasBall = fielder === receiver;
+            fielder.canMoveWithBall = false;
         });
         this.ball.setCarrier(receiver);
 
@@ -532,14 +535,15 @@ export class SimulationEngine {
             }
         } else if (pendingThrow.runner?.active && pendingThrow.playType === 'hold'
             && !pendingThrow.runner.hasPassedBase(pendingThrow.baseName)) {
-            pendingThrow.runner.returnToBase();
-            if (this.onEvent) {
-                this.onEvent({
-                    type: 'runner_cut_off',
-                    runner: pendingThrow.runner,
-                    baseName: pendingThrow.baseName,
-                });
-            }
+            pendingThrow.runner.returnToNamedBase(pendingThrow.baseName);
+            this.pendingTag = {
+                runner: pendingThrow.runner,
+                fielder: receiver,
+                baseName: pendingThrow.baseName,
+            };
+            receiver.canMoveWithBall = true;
+            if (this.onEvent) this.onEvent({ type: 'tag_attempt', fielder: receiver, runner: pendingThrow.runner });
+            return;
         }
 
         if (this.outs < 3) {
@@ -556,7 +560,7 @@ export class SimulationEngine {
             return;
         }
 
-        fielder.moveTo(runner.pos.x, runner.pos.y);
+        fielder.moveTo(runner.pos.x, runner.pos.y, true);
         const targetBase = runner.targetPos ? runner.baseNameAtPosition(runner.targetPos) : null;
         if (!targetBase && runner.currentBase === this.pendingTag.baseName) {
             this.pendingTag = null;
