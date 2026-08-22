@@ -29,7 +29,7 @@ export class Ball {
         
         const contact = Number(batterStats?.battingContact) || 55;
         const power = Number(batterStats?.battingPower) || 55;
-        const variance = ((100 - contact) / 100) * 25;
+        const variance = 2 + ((100 - contact) / 100) * 18;
         
         const finalX = targetX + (Math.random() * variance * 2 - variance);
         const finalY = targetY + (Math.random() * variance * 2 - variance);
@@ -43,24 +43,24 @@ export class Ball {
         
         switch (hitType) {
             case 'pop_up':
-                t = 4.0 + Math.random() * 2.0; // 4-6 seconds hang time (huge arc)
+                t = 4.5 + Math.random() * 1.5; // 4.5-6 seconds hang time
                 speed = dist / t;
                 break;
             case 'flyball':
-                t = 3.5 + Math.random() * 1.5; // 3.5-5 seconds hang time
+                t = 3.8 + Math.random() * 1.2; // 3.8-5 seconds hang time
                 speed = dist / t;
                 break;
             case 'blooper':
-                t = 2.5 + Math.random() * 1.0; // 2.5-3.5 seconds
+                t = 2.8 + Math.random() * 0.8; // 2.8-3.6 seconds
                 speed = dist / t;
                 break;
             case 'line_drive':
-                speed = 75 + (power / 100) * 55 + (Math.random() * 16 - 8);
+                speed = 65 + (power / 100) * 35 + (Math.random() * 10 - 5);
                 t = dist / speed;
                 break;
             case 'grounder':
             default:
-                speed = 45 + (power / 100) * 45 + (Math.random() * 12 - 6);
+                speed = 40 + (power / 100) * 40 + (Math.random() * 10 - 5);
                 t = dist / speed;
                 break;
 

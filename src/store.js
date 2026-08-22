@@ -18,7 +18,13 @@ export function loadTeams() {
       players: (team.players || []).map(player => ({
         ...player,
         number: player.number || player.battingOrder || 1,
-        attributes: { ...DEFAULT_ATTRIBUTES, ...(player.attributes || {}) },
+        attributes: {
+          ...DEFAULT_ATTRIBUTES,
+          ...(player.attributes || {}),
+          throwingTechnique: player.attributes?.throwingTechnique
+            ?? player.attributes?.throwSpeed
+            ?? DEFAULT_ATTRIBUTES.throwingTechnique,
+        },
       })),
     }));
   } catch (e) {

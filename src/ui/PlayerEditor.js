@@ -2,7 +2,7 @@ import { clampAttribute } from '../models/Player.js';
 
 const ATTRIBUTE_FIELDS = [
     ['speed', 'Movement speed'],
-    ['throwSpeed', 'Throw speed'],
+    ['throwingTechnique', 'Throwing technique'],
     ['throwAccuracy', 'Throw accuracy'],
     ['armStrength', 'Arm strength'],
     ['catchAccuracy', 'Catch / stop accuracy'],
@@ -16,6 +16,7 @@ export class PlayerEditor {
         this.container = container;
         this.selectedTeam = 0;
         this.selectedPlayer = 0;
+        this.isOpen = true;
         this.render();
     }
 
@@ -26,7 +27,7 @@ export class PlayerEditor {
         if (!team || !player) return;
 
         this.container.innerHTML = `
-            <details class="panel player-config">
+            <details class="panel player-config" ${this.isOpen ? 'open' : ''}>
                 <summary>Player Config</summary>
                 <label for="config-team">Team</label>
                 <select id="config-team">
@@ -50,6 +51,10 @@ export class PlayerEditor {
                 </div>
             </details>
         `;
+
+        this.container.querySelector('.player-config').addEventListener('toggle', event => {
+            this.isOpen = event.target.open;
+        });
 
         this.container.querySelector('#config-team').addEventListener('change', event => {
             this.selectedTeam = Number(event.target.value);

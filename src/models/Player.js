@@ -2,7 +2,7 @@
 // src/sim/physics.js converts them into real-world units (ft/s, feet, etc).
 export const DEFAULT_ATTRIBUTES = {
   speed: 55,
-  throwSpeed: 55,
+  throwingTechnique: 55,
   throwAccuracy: 55,
   armStrength: 55,
   catchAccuracy: 55,

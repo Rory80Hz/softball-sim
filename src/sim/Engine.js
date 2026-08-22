@@ -166,7 +166,7 @@ export class SimulationEngine {
 
         const target = this.scenario.hitTarget;
         const inFlight = this.ball.pos.z > 0.5 && this.scenario.hitType !== 'grounder';
-        const ballPoint = inFlight ? target : this.ball.pos;
+        const ballPoint = inFlight ? this.projectedLandingPoint() : this.ball.pos;
         if (this.ball.mode === 'loose') {
             const available = this.fielders.filter(f => f.active && !f.manualTarget);
             const nearest = available
@@ -227,7 +227,7 @@ export class SimulationEngine {
         this.fielders.forEach(fielder => {
             if (!fielder.active || fielder.manualTarget) return;
             if (fielder === primary) {
-                const destination = inFlight ? target : this.ball.pos;
+                const destination = inFlight ? ballPoint : this.ball.pos;
                 fielder.moveTo(destination.x, destination.y);
             } else if (fielder === outfieldBackup) {
                 fielder.moveTo(this.ball.pos.x, this.ball.pos.y);
@@ -269,6 +269,19 @@ export class SimulationEngine {
 
     timeToBall(fielder, point) {
         return Math.hypot(fielder.pos.x - point.x, fielder.pos.y - point.y) / fielder.moveSpeed;
+    }
+
+    projectedLandingPoint() {
+        const gravity = 32.2;
+        const verticalSpeed = this.ball.velocity.z;
+        const height = Math.max(this.ball.pos.z, 0);
+        const flightTime = verticalSpeed > 0
+            ? (verticalSpeed + Math.sqrt(verticalSpeed ** 2 + 2 * gravity * height)) / gravity
+            : 0;
+        return {
+            x: this.ball.pos.x + this.ball.velocity.x * flightTime,
+            y: this.ball.pos.y + this.ball.velocity.y * flightTime,
+        };
     }
 
     zoneTarget(position) {
@@ -421,8 +434,8 @@ export class SimulationEngine {
 
         const target = BASES[baseName] || BASES.home;
         const attributes = fielder.player.attributes;
-        const throwSpeed = 25 + attributes.throwSpeed * 0.35;
-        const throwArc = 5 + (100 - (Number(attributes.throwSpeed) || 1)) * 0.08;
+        const throwSpeed = this.throwSpeed(attributes);
+        const throwArc = 5 + (100 - (Number(attributes.throwingTechnique) || 1)) * 0.08;
         fielder.hasBall = false;
         this.pendingThrow = {
             runner,
@@ -531,10 +544,10 @@ export class SimulationEngine {
         this.ball.throwTo(
             fielder.pos,
             target,
-            25 + attributes.throwSpeed * 0.35,
+            this.throwSpeed(attributes),
             attributes.throwAccuracy,
             this.throwRange(attributes),
-            5 + (100 - (Number(attributes.throwSpeed) || 1)) * 0.08
+            5 + (100 - (Number(attributes.throwingTechnique) || 1)) * 0.08
         );
         if (this.onEvent) this.onEvent({ type: 'ball_thrown', fielder, target, playType: forced ? 'force' : 'hold' });
     }
@@ -555,13 +568,20 @@ export class SimulationEngine {
 
     throwRange(attributes) {
         const armStrength = Number(attributes.armStrength) || 1;
-        const throwSpeed = Number(attributes.throwSpeed) || 1;
-        return 45 + armStrength * 2.2 + throwSpeed * 0.6;
+        const technique = Number(attributes.throwingTechnique) || 1;
+        const armRange = 35 + armStrength * 1.1;
+        const speedFactor = 0.82 + technique / 550;
+        return armRange * speedFactor;
+    }
+
+    throwSpeed(attributes) {
+        const technique = Number(attributes.throwingTechnique) || 1;
+        return 35 + technique * 0.45;
     }
 
     throwMissVelocity(fielder, target) {
         const distance = Math.hypot(target.x - fielder.pos.x, target.y - fielder.pos.y) || 1;
-        const speed = 25 + (Number(fielder.player.attributes.throwSpeed) || 1) * 0.35;
+        const speed = this.throwSpeed(fielder.player.attributes);
         return {
             x: ((target.x - fielder.pos.x) / distance) * speed,
             y: ((target.y - fielder.pos.y) / distance) * speed,
