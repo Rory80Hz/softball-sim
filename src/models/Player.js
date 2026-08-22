@@ -6,6 +6,8 @@ export const DEFAULT_ATTRIBUTES = {
   throwAccuracy: 55,
   throwDistance: 55,
   catchAccuracy: 55,
+  battingContact: 55,
+  battingPower: 55,
 };
 
 let idCounter = 1;
@@ -13,12 +15,13 @@ export function nextId(prefix = 'p') {
   return `${prefix}${Date.now().toString(36)}${(idCounter++).toString(36)}`;
 }
 
-export function createPlayer({ name = 'New Player', position = 'CF', battingOrder = 1, attributes = {} } = {}) {
+export function createPlayer({ name = 'New Player', position = 'CF', battingOrder = 1, number = battingOrder, attributes = {} } = {}) {
   return {
     id: nextId('player'),
     name,
     position,
     battingOrder,
+    number,
     attributes: { ...DEFAULT_ATTRIBUTES, ...attributes },
   };
 }

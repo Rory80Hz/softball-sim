@@ -3,8 +3,9 @@ import { toWorld } from '../field/Field.js';
 import { BASES } from '../constants.js';
 
 export class Runner {
-    constructor(scene, player) {
+    constructor(scene, player, role = 'runner') {
         this.player = player;
+        this.role = role;
         this.active = true;
         this.currentBase = null; // null = home plate (batter), 'first', 'second', 'third'
 
@@ -15,6 +16,27 @@ export class Runner {
         this.mesh.castShadow = true;
         scene.add(this.mesh);
 
+        const labelCanvas = document.createElement('canvas');
+        labelCanvas.width = 192;
+        labelCanvas.height = 64;
+        const labelContext = labelCanvas.getContext('2d');
+        labelContext.fillStyle = '#ffffff';
+        labelContext.font = 'bold 26px sans-serif';
+        labelContext.textAlign = 'center';
+        labelContext.textBaseline = 'middle';
+        labelContext.strokeStyle = '#111820';
+        labelContext.lineWidth = 7;
+        const label = String(player.number ?? player.battingOrder ?? '?');
+        labelContext.strokeText(label, 96, 32);
+        labelContext.fillText(label, 96, 32);
+        this.label = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: new THREE.CanvasTexture(labelCanvas),
+            transparent: true,
+            depthTest: false,
+        }));
+        this.label.scale.set(10, 3.3, 1);
+        scene.add(this.label);
+
         this.pos = { x: 0, y: 0 };
         this.lastSafePosition = { x: 0, y: 0 };
         this.passedBases = new Set();
@@ -24,7 +46,8 @@ export class Runner {
         this.isOut = false;
         this.onScore = null;
         this.onOut = null;
-        this.speed = 10 + (this.player.attributes.speed / 100) * 10;
+        const speedAttribute = Number(this.player.attributes.speed) || 1;
+        this.moveSpeed = 10 + (speedAttribute / 100) * 10;
     }
 
     setPosition(x, y) {
@@ -81,7 +104,7 @@ export class Runner {
                 }
             }
         } else {
-            const step = Math.min(this.speed * dt, dist);
+            const step = Math.min(this.moveSpeed * dt, dist);
             this.pos.x += (dx / dist) * step;
             this.pos.y += (dy / dist) * step;
         }
@@ -109,5 +132,6 @@ export class Runner {
     updateMesh() {
         const worldPos = toWorld(this.pos.x, this.pos.y);
         this.mesh.position.set(worldPos.x, 4, worldPos.z);
+        this.label.position.set(worldPos.x, 9, worldPos.z);
     }
 }

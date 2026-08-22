@@ -13,8 +13,9 @@ import { SimulationEngine } from "../sim/Engine.js";
 import { createStore } from "../store.js";
 
 export class FieldScene {
-  constructor(container) {
+  constructor(container, store = createStore()) {
     this.container = container;
+    this.store = store;
     this.scene = new THREE.Scene();
     this.scene.background = null;
     // Create a large ground plane extending to horizon
@@ -118,7 +119,7 @@ export class FieldScene {
     this._clock = new THREE.Clock();
     this._raf = null;
     this._tick = this._tick.bind(this);
-    this.engine = new SimulationEngine(this.scene, createStore());
+    this.engine = new SimulationEngine(this.scene, this.store);
     this.engine.onEvent = (e) => console.log(e);
     this._tick();
   }

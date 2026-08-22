@@ -1,5 +1,6 @@
 import { createPlayer, nextId } from './Player.js';
 import { ALL_POSITIONS } from '../constants.js';
+import { DEFAULT_PLAYER_CONFIGS } from '../config/player-configs.js';
 
 export function createTeam(name = 'New Team') {
   return { id: nextId('team'), name, players: [] };
@@ -9,11 +10,14 @@ export function createTeam(name = 'New Team') {
 // starts in a usable state.
 export function createDefaultTeam(name) {
   const team = createTeam(name);
-  const positions = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'SF'];
-  positions.forEach((position, i) => {
+  const configs = DEFAULT_PLAYER_CONFIGS[name] || [
+    ['Player 1', 'P'], ['Player 2', 'C'], ['Player 3', '1B'], ['Player 4', '2B'], ['Player 5', '3B'],
+    ['Player 6', 'SS'], ['Player 7', 'LF'], ['Player 8', 'CF'], ['Player 9', 'RF'], ['Player 10', 'SF'],
+  ];
+  configs.forEach(([playerName, position], i) => {
     team.players.push(
       createPlayer({
-        name: `${name} Player ${i + 1}`,
+        name: `${name} ${playerName}`,
         position,
         battingOrder: i + 1,
       })

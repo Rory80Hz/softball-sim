@@ -7,6 +7,7 @@ export class Fielder {
         this.player = player;
         this.active = true;
         this.hasBall = false;
+        this.isCaller = false;
         
         // Use a simple box or cylinder for a player for now
         this.mesh = new THREE.Mesh(
@@ -16,10 +17,31 @@ export class Fielder {
         this.mesh.castShadow = true;
         scene.add(this.mesh);
 
+        const labelCanvas = document.createElement('canvas');
+        labelCanvas.width = 128;
+        labelCanvas.height = 64;
+        const labelContext = labelCanvas.getContext('2d');
+        labelContext.fillStyle = '#ffffff';
+        labelContext.font = 'bold 34px sans-serif';
+        labelContext.textAlign = 'center';
+        labelContext.textBaseline = 'middle';
+        labelContext.strokeStyle = '#111820';
+        labelContext.lineWidth = 8;
+        labelContext.strokeText(position, 64, 32);
+        labelContext.fillText(position, 64, 32);
+        this.label = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: new THREE.CanvasTexture(labelCanvas),
+            transparent: true,
+            depthTest: false,
+        }));
+        this.label.scale.set(9, 4.5, 1);
+        scene.add(this.label);
+
         this.pos = { x: 0, y: 0 };
         this.targetPos = null;
         // Set speed from attributes, mapped to ft/s (e.g. 55 -> 15 ft/s)
-        this.speed = 10 + (this.player.attributes.speed / 100) * 10; 
+        const speedAttribute = Number(this.player.attributes.speed) || 1;
+        this.moveSpeed = 10 + (speedAttribute / 100) * 10;
     }
 
     setPosition(x, y) {
@@ -49,7 +71,7 @@ export class Fielder {
             this.pos.y = this.targetPos.y;
             this.targetPos = null;
         } else {
-            const step = Math.min(this.speed * dt, dist);
+            const step = Math.min(this.moveSpeed * dt, dist);
             this.pos.x += (dx / dist) * step;
             this.pos.y += (dy / dist) * step;
         }
@@ -59,6 +81,7 @@ export class Fielder {
 
     updateMesh() {
         const worldPos = toWorld(this.pos.x, this.pos.y);
-        this.mesh.position.set(worldPos.x, 4, worldPos.z); // y=3 so it sits on ground
+        this.mesh.position.set(worldPos.x, 4, worldPos.z);
+        this.label.position.set(worldPos.x, 9, worldPos.z);
     }
 }

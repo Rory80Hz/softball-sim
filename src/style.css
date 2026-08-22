@@ -130,6 +130,49 @@ body {
   line-height: 1;
 }
 
+.event-ticker {
+  margin-top: 6px;
+  min-height: 18px;
+  max-height: 92px;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.event-ticker div {
+  padding: 1px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-config {
+  width: min(250px, calc(100vw - 24px));
+  padding: 10px;
+}
+
+.player-config h2 {
+  margin-bottom: 8px;
+}
+
+.player-config label {
+  margin-top: 6px;
+}
+
+.attribute-grid {
+  margin-top: 8px;
+}
+
+.attribute-grid label {
+  display: flex;
+  justify-content: space-between;
+}
+
+.attribute-grid output {
+  color: var(--text);
+}
+
 .scroll {
   overflow-y: auto;
 }

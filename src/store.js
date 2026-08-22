@@ -1,4 +1,5 @@
 import { createDefaultTeam } from './models/Team.js';
+import { DEFAULT_ATTRIBUTES } from './models/Player.js';
 
 const STORAGE_KEY = 'slowpitch-sim:teams:v1';
 
@@ -12,7 +13,14 @@ export function loadTeams() {
     if (!raw) return seedTeams();
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) return seedTeams();
-    return parsed;
+    return parsed.map(team => ({
+      ...team,
+      players: (team.players || []).map(player => ({
+        ...player,
+        number: player.number || player.battingOrder || 1,
+        attributes: { ...DEFAULT_ATTRIBUTES, ...(player.attributes || {}) },
+      })),
+    }));
   } catch (e) {
     console.warn('Failed to load teams, reseeding defaults.', e);
     return seedTeams();

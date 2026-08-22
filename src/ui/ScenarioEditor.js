@@ -54,6 +54,7 @@ export class ScenarioEditor {
                 <button class="btn danger icon-btn" id="btn-reset" aria-label="Reset play" title="Reset play">&#8635;</button>
             </div>
             <p id="play-status" style="margin: 10px 0 0; color: var(--text-dim);">Runs: 0 | Outs: 0</p>
+            <div id="event-ticker" class="event-ticker" aria-live="polite"></div>
 
             <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 10px;">
                 <label>Camera Controls</label>
@@ -72,6 +73,15 @@ export class ScenarioEditor {
         const runnerOption = this.el.querySelector('#runner-option');
         const resetScoreboard = () => {
             this.el.querySelector('#play-status').textContent = 'Runs: 0 | Outs: 0';
+            this.el.querySelector('#event-ticker').replaceChildren();
+        };
+
+        const addTickerEvent = message => {
+            const ticker = this.el.querySelector('#event-ticker');
+            const item = document.createElement('div');
+            item.textContent = message;
+            ticker.prepend(item);
+            while (ticker.children.length > 5) ticker.lastElementChild.remove();
         };
         
         // Initial load of scenario so players are in position before hit
@@ -126,16 +136,21 @@ export class ScenarioEditor {
         });
 
         this.engine.onEvent = (e) => {
-
-            if (e.type === 'ball_caught') {
-                alert(`${e.fielder.player.name} caught the ball! Click where to throw (not implemented yet).`);
-            }
+            if (e.type === 'play_started') addTickerEvent(`Hit: ${e.hitType.replace('_', ' ')} toward the configured location`);
+            if (e.type === 'fielder_call') addTickerEvent(`${e.fielder.positionName} calls the ball`);
+            if (e.type === 'ball_collected') addTickerEvent(`${e.fielder.positionName} fields the ball`);
+            if (e.type === 'ball_thrown') addTickerEvent(`${e.fielder.positionName} throws to ${e.playType === 'force' ? 'the base' : 'contain the runner'}`);
+            if (e.type === 'runner_cut_off') addTickerEvent(`Runner cut off at ${e.baseName}`);
+            if (e.type === 'tag_attempt') addTickerEvent(`${e.fielder.positionName} attempts a tag`);
             if (e.type === 'run_scored') {
                 this.el.querySelector('#play-status').textContent = `Runs: ${e.score} | Outs: ${this.engine.outs}`;
+                addTickerEvent('Run scored');
             }
             if (e.type === 'runner_out') {
                 this.el.querySelector('#play-status').textContent = `Runs: ${this.engine.score} | Outs: ${e.outs}`;
+                addTickerEvent('Runner out');
             }
+            if (e.type === 'play_stopped') addTickerEvent(`Play stopped: ${e.reason.replace('_', ' ')}`);
         };
     }
 

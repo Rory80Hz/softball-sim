@@ -24,13 +24,12 @@ export class Ball {
         this.carrier = null;
         this.pos = { x: 0, y: 0, z: 3 }; // stat 3 ft high (contact point)
         
-        // adding a bit of target randomization based on stats
-        // If batter 'catchAccuracy' (using as general skill for now) is 55, variance is higher.
-        const skill = batterStats?.catchAccuracy || 55;
-        const variance = ((100 - skill) / 100) * 15; // Up to 15 ft random variance off target
+        const contact = Number(batterStats?.battingContact) || 55;
+        const power = Number(batterStats?.battingPower) || 55;
+        const variance = ((100 - contact) / 100) * 25;
         
         const finalX = targetX + (Math.random() * variance * 2 - variance);
-        const finalY = targetY + (Math.random() * variance * 2 + variance / 2); // mostly varies further out
+        const finalY = targetY + (Math.random() * variance * 2 - variance);
         
         const dx = finalX - this.pos.x;
         const dy = finalY - this.pos.y;
@@ -53,12 +52,12 @@ export class Ball {
                 speed = dist / t;
                 break;
             case 'line_drive':
-                speed = 100 + Math.random() * 30; // Hard hit horizontally (100-130 ft/s)
+                speed = 75 + (power / 100) * 55 + (Math.random() * 16 - 8);
                 t = dist / speed;
                 break;
             case 'grounder':
             default:
-                speed = 70 + Math.random() * 30; // 70-100 ft/s
+                speed = 45 + (power / 100) * 45 + (Math.random() * 12 - 6);
                 t = dist / speed;
                 break;
 
