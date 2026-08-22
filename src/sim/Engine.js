@@ -458,16 +458,13 @@ export class SimulationEngine {
             this.runners.slice(1).forEach(runner => {
                 if (runner.active) runner.returnToBase();
             });
-            this.state = 'idle';
-            if (this.onEvent) this.onEvent({ type: 'play_stopped', reason: 'caught_fly' });
-            return;
         }
 
         const play = this.selectDefensivePlay(fielder);
         const runner = play?.runner;
         const forced = play?.forced || false;
         const baseName = play?.baseName || 'home';
-        if (runner && this.isWellPositionedForTag(fielder, runner)) {
+        if (runner && (this.isWellPositionedForTag(fielder, runner) || runner.isReturning)) {
             this.pendingTag = { runner, fielder, baseName };
             this.pendingThrow = null;
             fielder.moveTo(runner.pos.x, runner.pos.y);

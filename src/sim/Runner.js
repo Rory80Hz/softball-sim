@@ -47,6 +47,7 @@ export class Runner {
         this.hasScored = false;
         this.isOut = false;
         this.walkOffTarget = null;
+        this.isReturning = false;
         this.walkOffElapsed = 0;
         this.onScore = null;
         this.onOut = null;
@@ -105,6 +106,7 @@ export class Runner {
             const reachedBase = this.baseNameAtPosition(this.targetPos);
             const reachedHome = reachedBase === 'home';
             if (reachedBase) {
+                this.isReturning = false;
                 this.currentBase = reachedBase;
                 this.lastSafePosition = { x: this.pos.x, y: this.pos.y };
                 this.passedBases.add(reachedBase);
@@ -157,12 +159,14 @@ export class Runner {
 
 
     returnToBase() {
+        this.isReturning = true;
         this.targetPos = { ...this.lastSafePosition };
         this.path = [];
     }
 
     returnToNamedBase(baseName) {
         if (!BASES[baseName]) return;
+        this.isReturning = true;
         this.targetPos = { ...BASES[baseName] };
         this.path = [];
     }
