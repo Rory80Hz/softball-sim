@@ -14,9 +14,14 @@ export class Ball {
         this.pos = { x: 0, y: 0, z: 0 };
         this.velocity = { x: 0, y: 0, z: 0 };
         this.active = false;
+        this.mode = 'idle';
+        this.carrier = null;
+        this.onThrowComplete = null;
     }
 
     hit(targetX, targetY, hitType = 'grounder', batterStats = null) {
+        this.mode = 'hit';
+        this.carrier = null;
         this.pos = { x: 0, y: 0, z: 3 }; // stat 3 ft high (contact point)
         
         // adding a bit of target randomization based on stats
@@ -75,8 +80,74 @@ export class Ball {
         this.updateMesh();
     }
 
+    throwTo(start, target, speed, accuracy = 100) {
+        const dx = target.x - start.x;
+        const dy = target.y - start.y;
+        const distance = Math.hypot(dx, dy);
+        const error = (100 - accuracy) / 100 * 8;
+        const finalTarget = {
+            x: target.x + (Math.random() * 2 - 1) * error,
+            y: target.y + (Math.random() * 2 - 1) * error,
+        };
+        const finalDx = finalTarget.x - start.x;
+        const finalDy = finalTarget.y - start.y;
+        const finalDistance = Math.hypot(finalDx, finalDy) || 1;
+
+        this.pos = { x: start.x, y: start.y, z: 4 };
+        this.velocity = {
+            x: (finalDx / finalDistance) * speed,
+            y: (finalDy / finalDistance) * speed,
+            z: 0,
+        };
+        this.throwTarget = finalTarget;
+        this.throwRemaining = finalDistance;
+        this.mode = 'throw';
+        this.carrier = null;
+        this.active = true;
+        this.mesh.visible = true;
+        this.updateMesh();
+    }
+
+    setCarrier(fielder) {
+        this.carrier = fielder;
+        this.active = false;
+        this.mode = 'held';
+        this.pos = { ...fielder.pos, z: 4 };
+        this.updateMesh();
+    }
+
+    releaseAt(position) {
+        this.carrier = null;
+        this.pos = { x: position.x, y: position.y, z: 0.5 };
+        this.velocity = { x: 0, y: 0, z: 0 };
+        this.mode = 'loose';
+        this.active = true;
+        this.mesh.visible = true;
+        this.updateMesh();
+    }
+
     update(dt) {
         if (!this.active) return;
+
+        if (this.mode === 'throw') {
+            const distance = Math.hypot(this.velocity.x, this.velocity.y) * dt;
+            this.pos.x += this.velocity.x * dt;
+            this.pos.y += this.velocity.y * dt;
+            this.throwRemaining -= distance;
+            if (this.throwRemaining <= 0) {
+                this.pos.x = this.throwTarget.x;
+                this.pos.y = this.throwTarget.y;
+                this.pos.z = 0.5;
+                this.velocity.x = 0;
+                this.velocity.y = 0;
+                this.active = false;
+                this.mode = 'idle';
+                if (this.onThrowComplete) this.onThrowComplete(this.throwTarget);
+            }
+            this.updateMesh();
+            return;
+        }
+
         this.pos.x += this.velocity.x * dt;
         this.pos.y += this.velocity.y * dt;
         // Gravity

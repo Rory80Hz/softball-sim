@@ -119,18 +119,24 @@ function dottedLineStrip(points, width = 0.2, color = COLORS.chalk, y = 0.02) {
     return line;
 }
 
-export function buildField() {
+export function buildField(bounds) {
   const group = new THREE.Group();
   group.name = 'field';
 
-  // --- Ground base (out-of-play surround, so the whole viewport is green) --
-  const groundSize = FIELD.fenceDistance * 8;
+  // --- Ground base, constrained to the scene boundary --------------------
+  const groundWidth = bounds.maxX - bounds.minX;
+  const groundDepth = bounds.maxY - bounds.minY;
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(groundSize, groundSize),
+    new THREE.PlaneGeometry(groundWidth, groundDepth),
     new THREE.MeshLambertMaterial({ color: COLORS.outOfPlay })
   );
   ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -0.02;
+  ground.position.set(
+    (bounds.minX + bounds.maxX) / 2,
+    -0.02,
+    -(bounds.minY + bounds.maxY) / 2
+  );
+  ground.receiveShadow = true;
   group.add(ground);
 
   // --- Fair territory grass (90 degree pie from foul line to foul line) --

@@ -6,6 +6,7 @@ export class Fielder {
         this.positionName = position;
         this.player = player;
         this.active = true;
+        this.hasBall = false;
         
         // Use a simple box or cylinder for a player for now
         this.mesh = new THREE.Mesh(

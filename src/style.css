@@ -31,6 +31,10 @@ body {
   height: 100vh;
 }
 
+#field-test {
+  background: linear-gradient(180deg, #161a1f 0%, #30363d 55%, #4a5158 100%);
+}
+
 /* --- Top nav ------------------------------------------------------- */
 #top-nav {
   display: flex;
@@ -101,6 +105,29 @@ body {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 14px;
+}
+
+.play-config {
+  width: min(250px, calc(100vw - 24px));
+  padding: 10px;
+}
+
+.play-config h2 {
+  margin-bottom: 8px;
+}
+
+.play-config label {
+  margin-top: 5px;
+}
+
+.play-config .icon-btn {
+  width: 34px;
+  height: 32px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  font-size: 16px;
+  line-height: 1;
 }
 
 .scroll {

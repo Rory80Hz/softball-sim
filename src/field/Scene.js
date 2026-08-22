@@ -16,15 +16,8 @@ export class FieldScene {
   constructor(container) {
     this.container = container;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x87CEEB); // Sky blue color
+    this.scene.background = null;
     // Create a large ground plane extending to horizon
-    const horizonGeometry = new THREE.PlaneGeometry(5000, 5000);
-    const horizonMaterial = new THREE.MeshLambertMaterial({ color: 0x3d7e39 }); // Darker grass/forest floor
-    const horizonPlane = new THREE.Mesh(horizonGeometry, horizonMaterial);
-    horizonPlane.rotation.x = -Math.PI / 2;
-    horizonPlane.position.y = -0.1; // Just below the field
-    horizonPlane.receiveShadow = true;
-    this.scene.add(horizonPlane);
 
     // The field's playable bounding box isn't centered on home plate - it
     // extends ~300' toward center field but only ~12' behind the plate.
@@ -42,6 +35,30 @@ export class FieldScene {
     const centerX = (maxX + minX) / 2;
     const centerY = (maxY + minY) / 2;
     this.viewCenter = toWorld(centerX, centerY);
+
+    // Create a semi-transparent bounding box to visualize the limits in 3D
+    const boundaryGeo = new THREE.BoxGeometry(maxX - minX, 100, maxY - minY);
+    const boundaryMat = new THREE.MeshBasicMaterial({ 
+        color: 0x87CEEB, 
+        transparent: true, 
+        opacity: 0.15, 
+        side: THREE.BackSide, // map to the inside walls
+        depthWrite: false
+    });
+    const boundaryBox = new THREE.Mesh(boundaryGeo, boundaryMat);
+    boundaryBox.position.set(centerX, 50, -centerY); // Center Y up 50ft (100/2)
+    this.scene.add(boundaryBox);
+
+    // Add wireframe edges for crisp corners
+    const boundaryEdges = new THREE.EdgesGeometry(boundaryGeo);
+    const boundaryLines = new THREE.LineSegments(boundaryEdges, new THREE.LineBasicMaterial({ 
+        color: 0xffffff, 
+        transparent: true, 
+        opacity: 0.2 
+    }));
+    boundaryLines.position.copy(boundaryBox.position);
+    this.scene.add(boundaryLines);
+
 
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
     this.camera.position.set(this.viewCenter.x, 260, this.viewCenter.z);
@@ -83,7 +100,7 @@ export class FieldScene {
     sun.shadow.mapSize.height = 1024;
     this.scene.add(sun);
 
-    this.fieldGroup = buildField();
+    this.fieldGroup = buildField(this.bounds);
     this.scene.add(this.fieldGroup);
 
     this.tokensGroup = new THREE.Group();

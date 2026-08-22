@@ -5,93 +5,61 @@ export class ScenarioEditor {
         this.engine = engine;
         this.container = container;
         
-        this.scenarios = [
-            {
-                name: "Basic Grounder to SS",
-                def: {
-                    outfieldPositions: {},
-                    runners: [{ startPos: BASES.home, playerId: null }],
-                    hitTarget: { x: -25, y: 70 },
-                    hitType: 'grounder',
-                    runnerPaths: [[BASES.first]]
-                }
-            },
-            {
-                name: "Pop Up to Infield",
-                def: {
-                    outfieldPositions: {},
-                    runners: [
-                        { startPos: BASES.home, playerId: null },
-                        { startPos: BASES.first, playerId: null }
-                    ],
-                    hitTarget: { x: 15, y: 55 },
-                    hitType: 'pop_up',
-                    runnerPaths: [[], []] // wait and see
-                }
-            },
-            {
-                name: "Blooper to Shallow RF",
-                def: {
-                    outfieldPositions: {},
-                    runners: [{ startPos: BASES.home, playerId: null }],
-                    hitTarget: { x: 50, y: 130 },
-                    hitType: 'blooper',
-                    runnerPaths: [[BASES.first]]
-                }
-            },
-            {
-                name: "Line Drive to Left Center Gap",
-                def: {
-                    outfieldPositions: {
-                        'LC': { x: -20, y: 220 }, // deeper LC position
-                    },
-                    runners: [
-                        { startPos: BASES.home, playerId: null },
-                        { startPos: BASES.second, playerId: null }
-                    ],
-                    hitTarget: { x: -35, y: 240 },
-                    hitType: 'line_drive',
-                    runnerPaths: [
-                        [BASES.first, BASES.second],
-                        [BASES.third, BASES.home]
-                    ]
-                }
-            },
-            {
-                name: "Deep Flyball to LF",
-                def: {
-                    outfieldPositions: {},
-                    runners: [{ startPos: BASES.home, playerId: null }],
-                    hitTarget: { x: -70, y: 270 },
-                    hitType: 'flyball',
-                    runnerPaths: [[BASES.first, BASES.second]]
-                }
-            }
+        this.hitTypes = [
+            ['grounder', 'Grounder'],
+            ['line_drive', 'Line drive'],
+            ['blooper', 'Blooper'],
+            ['flyball', 'Fly ball'],
+            ['pop_up', 'Pop-up'],
         ];
+        this.hitLocations = [
+            ['ss', 'Shortstop', { x: -25, y: 70 }],
+            ['left_infield', 'Left infield', { x: -20, y: 105 }],
+            ['right_infield', 'Right infield', { x: 25, y: 105 }],
+            ['left_center', 'Left center', { x: -35, y: 220 }],
+            ['center', 'Center field', { x: 0, y: 245 }],
+            ['right_center', 'Right center', { x: 35, y: 220 }],
+            ['deep_left', 'Deep left field', { x: -70, y: 270 }],
+            ['deep_right', 'Deep right field', { x: 70, y: 270 }],
+        ];
+        this.runnerOptions = [{ label: 'Bases empty', bases: [] }];
+        for (let mask = 1; mask < 8; mask += 1) {
+            const bases = ['first', 'second', 'third'].filter((_, index) => mask & (1 << index));
+            this.runnerOptions.push({
+                label: bases.map(base => base[0].toUpperCase() + base.slice(1)).join(' + '),
+                bases,
+            });
+        }
 
         this.el = document.createElement('div');
-        this.el.className = 'panel';
-        this.el.style.width = '300px';
+        this.el.className = 'panel play-config';
         this.el.innerHTML = `
-            <h2>Scenario Test</h2>
-            <div style="margin-bottom: 10px;">
-                <label>Select Scenario:</label>
-                <select id="scenario-select">
-                    ${this.scenarios.map((s, i) => `<option value="${i}">${s.name}</option>`).join('')}
-                </select>
-            </div>
+            <h2>Play Setup</h2>
+            <label for="hit-type">Hit type</label>
+            <select id="hit-type">
+                ${this.hitTypes.map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}
+            </select>
+            <label for="hit-location" style="margin-top: 8px;">Location to hit</label>
+            <select id="hit-location">
+                ${this.hitLocations.map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}
+            </select>
+            <label for="runner-option" style="margin-top: 8px;">Runners on base</label>
+            <select id="runner-option">
+                ${this.runnerOptions.map((option, index) => `<option value="${index}">${option.label}</option>`).join('')}
+            </select>
             <div style="display: flex; gap: 5px;">
-                <button class="btn primary" id="btn-start">Hit Ball & Run</button>
-                <button class="btn" id="btn-pause">Pause</button>
-                <button class="btn" id="btn-resume">Resume</button>
-                <button class="btn danger" id="btn-reset">Reset</button>
+                <button class="btn primary icon-btn" id="btn-start" aria-label="Start play" title="Start play">&#9654;</button>
+                <button class="btn icon-btn" id="btn-pause" aria-label="Pause play" title="Pause play">&#10074;&#10074;</button>
+                <button class="btn icon-btn" id="btn-resume" aria-label="Resume play" title="Resume play">&#9654;</button>
+                <button class="btn danger icon-btn" id="btn-reset" aria-label="Reset play" title="Reset play">&#8635;</button>
             </div>
+            <p id="play-status" style="margin: 10px 0 0; color: var(--text-dim);">Runs: 0 | Outs: 0</p>
 
             <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 10px;">
                 <label>Camera Controls</label>
                 <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 5px;">
-                    <button class="btn" id="btn-cam-top">Top View</button>
-                    <button class="btn" id="btn-cam-3d">3D View (Home)</button>
+                    <button class="btn icon-btn" id="btn-cam-top" aria-label="Top view" title="Top view">&#8862;</button>
+                    <button class="btn icon-btn" id="btn-cam-3d" aria-label="3D view" title="3D view">&#9670;</button>
                 </div>
             </div>
             
@@ -99,28 +67,36 @@ export class ScenarioEditor {
         this.container.appendChild(this.el);
 
 
-        const select = this.el.querySelector('#scenario-select');
+        const hitType = this.el.querySelector('#hit-type');
+        const hitLocation = this.el.querySelector('#hit-location');
+        const runnerOption = this.el.querySelector('#runner-option');
+        const resetScoreboard = () => {
+            this.el.querySelector('#play-status').textContent = 'Runs: 0 | Outs: 0';
+        };
         
         // Initial load of scenario so players are in position before hit
-        this.engine.loadScenario(this.scenarios[0].def);
+        this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption));
 
-        select.addEventListener('change', (e) => {
-            const index = parseInt(e.target.value);
-            this.engine.loadScenario(this.scenarios[index].def);
-        });
+        const rebuild = () => {
+            this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption));
+            resetScoreboard();
+        };
+        hitType.addEventListener('change', rebuild);
+        hitLocation.addEventListener('change', rebuild);
+        runnerOption.addEventListener('change', rebuild);
 
         this.el.querySelector('#btn-start').addEventListener('click', () => {
              // Reset first so if they click it mid-play or after a play, it restarts clean
-             const index = parseInt(select.value);
-             this.engine.loadScenario(this.scenarios[index].def);
+             this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption));
+             resetScoreboard();
              
              // Start the run
              this.engine.startPlay();
         });
 
         this.el.querySelector('#btn-reset').addEventListener('click', () => {
-             const index = parseInt(select.value);
-             this.engine.loadScenario(this.scenarios[index].def);
+             this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption));
+               resetScoreboard();
         });
         
         this.el.querySelector('#btn-pause').addEventListener('click', () => this.engine.pause());
@@ -154,6 +130,34 @@ export class ScenarioEditor {
             if (e.type === 'ball_caught') {
                 alert(`${e.fielder.player.name} caught the ball! Click where to throw (not implemented yet).`);
             }
+            if (e.type === 'run_scored') {
+                this.el.querySelector('#play-status').textContent = `Runs: ${e.score} | Outs: ${this.engine.outs}`;
+            }
+            if (e.type === 'runner_out') {
+                this.el.querySelector('#play-status').textContent = `Runs: ${this.engine.score} | Outs: ${e.outs}`;
+            }
+        };
+    }
+
+    getDefinition(hitType, hitLocation, runnerOption) {
+        const location = this.hitLocations.find(([value]) => value === hitLocation.value);
+        const selectedRunners = this.runnerOptions[Number(runnerOption.value)].bases;
+        const baseOrder = ['first', 'second', 'third', 'home'];
+        const runners = [{ startPos: BASES.home, playerId: null }];
+        const runnerPaths = [baseOrder.map(base => BASES[base])];
+
+        selectedRunners.forEach(base => {
+            runners.push({ startPos: BASES[base], playerId: null });
+            const startIndex = baseOrder.indexOf(base);
+            runnerPaths.push(baseOrder.slice(startIndex + 1).map(nextBase => BASES[nextBase]));
+        });
+
+        return {
+            outfieldPositions: {},
+            runners,
+            hitTarget: { ...location[2] },
+            hitType: hitType.value,
+            runnerPaths,
         };
     }
 }
