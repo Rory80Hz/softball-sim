@@ -15,7 +15,15 @@ export class FieldScene {
   constructor(container) {
     this.container = container;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0d1117);
+    this.scene.background = new THREE.Color(0x87CEEB); // Sky blue color
+    // Create a large ground plane extending to horizon
+    const horizonGeometry = new THREE.PlaneGeometry(5000, 5000);
+    const horizonMaterial = new THREE.MeshLambertMaterial({ color: 0x3d7e39 }); // Darker grass/forest floor
+    const horizonPlane = new THREE.Mesh(horizonGeometry, horizonMaterial);
+    horizonPlane.rotation.x = -Math.PI / 2;
+    horizonPlane.position.y = -0.1; // Just below the field
+    horizonPlane.receiveShadow = true;
+    this.scene.add(horizonPlane);
 
     // The field's playable bounding box isn't centered on home plate - it
     // extends ~300' toward center field but only ~12' behind the plate.
@@ -49,7 +57,7 @@ export class FieldScene {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableRotate = true;
     this.controls.maxPolarAngle = Math.PI / 2.1; // dont go under the field
-    this.controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.NONE };
+    this.controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
 
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.75));
     const sun = new THREE.DirectionalLight(0xffffff, 0.6);

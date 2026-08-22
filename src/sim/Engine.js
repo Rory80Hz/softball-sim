@@ -77,18 +77,6 @@ export class SimulationEngine {
        if(this.scenario?.hitTarget) {
            const batterStats = this.runners.length > 0 ? this.runners[0].player.attributes : null;
            this.ball.hit(this.scenario.hitTarget.x, this.scenario.hitTarget.y, this.scenario.hitType || 'grounder', batterStats);
-           // Make closest fielder chase ball
-           let closest = null;
-           let minDist = Infinity;
-           this.fielders.forEach(f => {
-               if(!f.active) return;
-               const d = Math.hypot(f.pos.x - this.scenario.hitTarget.x, f.pos.y - this.scenario.hitTarget.y);
-               if(d < minDist) {
-                   minDist = d;
-                   closest = f;
-               }
-           });
-           if(closest) closest.moveTo(this.scenario.hitTarget.x, this.scenario.hitTarget.y);
        }
 
        // Start runners
@@ -116,7 +104,27 @@ export class SimulationEngine {
         
         this.ball.update(dt);
         this.runners.forEach(r => r.update(dt));
+        
+        // Find closest fielder and make them chase the active ball position actively
+        if (this.ball.active) {
+            let closest = null;
+            let minDist = Infinity;
+            this.fielders.forEach(f => {
+                if(!f.active) return;
+                const d = Math.hypot(f.pos.x - this.ball.pos.x, f.pos.y - this.ball.pos.y);
+                if(d < minDist) {
+                    minDist = d;
+                    closest = f;
+                }
+            });
+            if (closest) {
+                closest.moveTo(this.ball.pos.x, this.ball.pos.y);
+            }
+        }
+        
         this.fielders.forEach(f => f.update(dt));
+        
+        // Simple check: did a fielder reached the ball?
         // Simple check: did a fielder reached the ball?
         if (this.ball.active) {
             const distFromHome = Math.hypot(this.ball.pos.x, this.ball.pos.y);
