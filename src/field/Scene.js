@@ -8,6 +8,7 @@ import { FIELD } from '../constants.js';
 // (plus a little padding) so proportions stay accurate regardless of the
 // screen/canvas size - only the framing padding changes, never the scale.
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { ViewHelper } from "three/addons/helpers/ViewHelper.js";
 import { SimulationEngine } from "../sim/Engine.js";
 import { createStore } from "../store.js";
 
@@ -30,11 +31,11 @@ export class FieldScene {
     // Frame the camera on the box's center (with a little padding) so the
     // whole field fills the view at a consistent, undistorted feet-per-pixel
     // scale no matter the viewport's aspect ratio.
-    const pad = 1.06;
-    const minX = -FIELD.fenceDistance * Math.SQRT1_2 * pad;
-    const maxX = FIELD.fenceDistance * Math.SQRT1_2 * pad;
-    const minY = -30;
-    const maxY = FIELD.fenceDistance * pad;
+    const pad = 1.0;
+    const minX = -(FIELD.fenceDistance * Math.SQRT1_2 + 60);
+    const maxX = (FIELD.fenceDistance * Math.SQRT1_2 + 60);
+    const minY = -60;
+    const maxY = FIELD.fenceDistance + 60;
     this.bounds = { minX, maxX, minY, maxY };
     this.boundsHalfWidth = (maxX - minX) / 2;
     this.boundsHalfHeight = (maxY - minY) / 2;
@@ -49,7 +50,8 @@ export class FieldScene {
 
         
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    this.renderer.autoClear = false;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -58,6 +60,14 @@ export class FieldScene {
     this.controls.enableRotate = true;
     this.controls.maxPolarAngle = Math.PI / 2.1; // dont go under the field
     this.controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+
+    this.viewHelper = new ViewHelper(this.camera, this.renderer.domElement);
+    this.viewHelper.center.copy(this.controls.target);
+    
+    // Hook up click on the view helper
+    this.container.addEventListener('pointerup', (event) => {
+        this.viewHelper.handleClick(event);
+    });
 
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.75));
     const sun = new THREE.DirectionalLight(0xffffff, 0.6);
@@ -106,7 +116,9 @@ export class FieldScene {
     this._animateCallbacks.forEach((fn) => fn(dt));
     this.engine.update(dt);
     this.controls.update();
+    this.renderer.clear();
     this.renderer.render(this.scene, this.camera);
+    this.viewHelper.render(this.renderer);
     this._raf = requestAnimationFrame(this._tick);
   }
 

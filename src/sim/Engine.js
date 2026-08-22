@@ -104,23 +104,74 @@ export class SimulationEngine {
         
         this.ball.update(dt);
         this.runners.forEach(r => r.update(dt));
-        
-        // Find closest fielder and make them chase the active ball position actively
+        // Advanced Fielder Tracking: Anticipate hit target vs chase missed rolling ball
         if (this.ball.active) {
-            let closest = null;
-            let minDist = Infinity;
+            let primaryToTarget = null;
+            let minDistToTarget = Infinity;
+            this.fielders.forEach(f => {
+                if(!f.active) return;
+                const d = Math.hypot(f.pos.x - this.scenario.hitTarget.x, f.pos.y - this.scenario.hitTarget.y);
+                if(d < minDistToTarget) {
+                    minDistToTarget = d;
+                    primaryToTarget = f;
+                }
+            });
+
+            let primaryToBall = null;
+            let minDistToBall = Infinity;
             this.fielders.forEach(f => {
                 if(!f.active) return;
                 const d = Math.hypot(f.pos.x - this.ball.pos.x, f.pos.y - this.ball.pos.y);
-                if(d < minDist) {
-                    minDist = d;
-                    closest = f;
+                if(d < minDistToBall) {
+                    minDistToBall = d;
+                    primaryToBall = f;
                 }
             });
-            if (closest) {
-                closest.moveTo(this.ball.pos.x, this.ball.pos.y);
-            }
+
+            const outfielders = ['LF', 'LC', 'CF', 'RC', 'RF', 'SF'];
+
+            this.fielders.forEach(f => {
+                if (!f.active) return;
+                
+                // Allow manual override (if the user clicks a location in the future)
+                if (f.manualTarget) {
+                    f.moveTo(f.manualTarget.x, f.manualTarget.y);
+                    return;
+                }
+
+                // If in flight, anticipate landing spot. If on ground, chase current ball pos.
+                const inFlight = this.ball.pos.z > 0.5 && this.scenario.hitType !== 'grounder';
+
+                if (inFlight) {
+                    if (f === primaryToTarget) {
+                        f.moveTo(this.scenario.hitTarget.x, this.scenario.hitTarget.y);
+                    } else if (outfielders.includes(f.positionName)) {
+                        const dToTarget = Math.hypot(f.pos.x - this.scenario.hitTarget.x, f.pos.y - this.scenario.hitTarget.y);
+                        if (dToTarget > 40) {
+                            f.moveTo(this.scenario.hitTarget.x, this.scenario.hitTarget.y);
+                        } else {
+                            f.targetPos = null;
+                        }
+                    } else {
+                        f.targetPos = null;
+                    }
+                } else {
+                    if (f === primaryToBall) {
+                        f.moveTo(this.ball.pos.x, this.ball.pos.y);
+                    } else if (outfielders.includes(f.positionName)) {
+                        const dToBall = Math.hypot(f.pos.x - this.ball.pos.x, f.pos.y - this.ball.pos.y);
+                        if (dToBall > 40) {
+                            f.moveTo(this.ball.pos.x, this.ball.pos.y);
+                        } else {
+                            f.targetPos = null; // Backup
+                        }
+                    } else {
+                        f.targetPos = null; 
+                    }
+                }
+            });
         }
+
         
         this.fielders.forEach(f => f.update(dt));
         

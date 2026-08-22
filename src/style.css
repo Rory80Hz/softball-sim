@@ -226,3 +226,15 @@ th {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+
+/* ViewHelper Gizmo positioning */
+#view-root > canvas:nth-child(2) {
+    position: absolute;
+    right: 20px;
+    bottom: 20px;
+    width: 128px;
+    height: 128px;
+    z-index: 50;
+    pointer-events: none; /* Passes clicks through unless specifically intercepted by our listener */
+}
