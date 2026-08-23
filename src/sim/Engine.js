@@ -27,7 +27,9 @@ export class SimulationEngine {
        const teams = this.store.getTeams();
        const fieldingTeam = teams[0]; // Assuming home team fields first
        const battingTeam = teams[1];
-    const batter = battingTeam.players[Math.floor(Math.random() * battingTeam.players.length)];
+       const configuredBatterId = scenarioDef.runners?.[0]?.playerId;
+       const batter = battingTeam.players.find(player => player.id === configuredBatterId)
+           || battingTeam.players[Math.floor(Math.random() * battingTeam.players.length)];
 
        // Clear old meshes
        this.fielders.forEach(f => {
@@ -177,7 +179,7 @@ export class SimulationEngine {
                 if (!f.isCaller) continue;
                 
                 // Prevent catcher from instantly intercepting hits while over the plate
-                if (f.positionName === 'C' && distFromHome < 15) continue;
+                if (f.positionName === 'C' && this.scenario.hitType === 'grounder' && distFromHome < 15) continue;
 
                 const fielderZ = 4; // Fielder is at height 4ft
 
@@ -494,6 +496,13 @@ export class SimulationEngine {
         this.pendingThrow = null;
         if (!pendingThrow) return;
 
+        if (this.ball.throwMissed) {
+            pendingThrow.fielder.hasBall = false;
+            this.ball.releaseAt(pendingThrow.target);
+            this.ball.velocity = this.throwMissVelocity(pendingThrow.fielder, pendingThrow.target);
+            return;
+        }
+
         const receiver = this.findBaseReceiver(pendingThrow);
 
         if (!receiver) {
@@ -737,6 +746,7 @@ export class SimulationEngine {
                 runner.pos = { ...BASES[nextBase] };
                 runner.currentBase = nextBase;
                 runner.lastSafePosition = { ...runner.pos };
+                runner.passedBases.add(nextBase);
                 runner.targetPos = null;
                 runner.path = [];
                 runner.updateMesh();

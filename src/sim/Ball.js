@@ -24,6 +24,7 @@ export class Ball {
     hit(targetX, targetY, hitType = 'grounder', batterStats = null) {
         this.mode = 'hit';
         this.carrier = null;
+        this.throwMissed = false;
         this.hasLanded = hitType === 'grounder';
         this.pos = { x: 0, y: 0, z: 3 }; // stat 3 ft high (contact point)
         
@@ -127,6 +128,7 @@ export class Ball {
 
     setCarrier(fielder) {
         this.carrier = fielder;
+        this.throwMissed = false;
         this.active = false;
         this.mode = 'held';
         this.mesh.visible = true;

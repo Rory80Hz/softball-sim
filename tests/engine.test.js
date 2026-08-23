@@ -1,0 +1,202 @@
+import { describe, expect, it, vi } from 'vitest';
+import { SimulationEngine } from '../src/sim/Engine.js';
+import { createDefaultTeam } from '../src/models/Team.js';
+import { BASES } from '../src/constants.js';
+import { Ball } from '../src/sim/Ball.js';
+import { Runner } from '../src/sim/Runner.js';
+import { createScene } from './helpers.js';
+
+function createEngine() {
+  const teams = [createDefaultTeam('Home Sluggers'), createDefaultTeam('Away Thunder')];
+  return new SimulationEngine(createScene(), { getTeams: () => teams });
+}
+
+function bareEngine(overrides = {}) {
+  return Object.assign(Object.create(SimulationEngine.prototype), {
+    runners: [],
+    fielders: [],
+    score: 0,
+    outs: 0,
+    state: 'idle',
+    ball: { mode: 'idle', active: false, pos: { x: 0, y: 0, z: 0 }, velocity: { x: 0, y: 0, z: 0 } },
+    onEvent: null,
+    ...overrides,
+  });
+}
+
+describe('SimulationEngine lifecycle', () => {
+  it('uses the configured batter when assigning other runners', () => {
+    const engine = createEngine();
+    const battingTeam = engine.store.getTeams()[1];
+    const selectedBatter = battingTeam.players[2];
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    engine.loadScenario({
+      runners: [
+        { startPos: BASES.home, playerId: selectedBatter.id },
+        { startPos: BASES.first, playerId: null },
+      ],
+      runnerPaths: [[BASES.first], [BASES.second]],
+      hitType: 'grounder',
+      hitTarget: { x: 25, y: 105 },
+    });
+
+    expect(engine.runners[0].player.id).toBe(selectedBatter.id);
+    expect(engine.runners[1].player.id).toBe(battingTeam.players[0].id);
+  });
+
+  it('loads a scenario into fielders and runners in an idle state', () => {
+    const engine = createEngine();
+    engine.loadScenario({
+      hitType: 'grounder',
+      hitTarget: { x: 25, y: 105 },
+      runners: [{ startPos: BASES.home, playerId: null }],
+      runnerPaths: [[BASES.first]],
+    });
+
+    expect(engine.state).toBe('idle');
+    expect(engine.fielders).toHaveLength(10);
+    expect(engine.runners).toHaveLength(1);
+    expect(engine.ball.active).toBe(false);
+    expect(engine.score).toBe(0);
+    expect(engine.outs).toBe(0);
+  });
+
+  it('starts, pauses, resumes, and ends a play with events', () => {
+    const engine = createEngine();
+    const events = [];
+    engine.onEvent = event => events.push(event);
+    const scenario = {
+      hitType: 'line_drive',
+      hitTarget: { x: 25, y: 105 },
+      runners: [{ startPos: BASES.home, playerId: null }],
+      runnerPaths: [[BASES.first]],
+    };
+    engine.loadScenario(scenario);
+    engine.startPlay();
+    expect(engine.state).toBe('playing');
+    expect(engine.ball.mode).toBe('hit');
+    expect(events[0].type).toBe('play_started');
+
+    engine.pause();
+    expect(engine.state).toBe('paused');
+    engine.resume();
+    expect(engine.state).toBe('playing');
+    engine.endPlay();
+    expect(engine.state).toBe('idle');
+    expect(engine.ball.mesh.visible).toBe(false);
+    expect(events.at(-1)).toMatchObject({ type: 'play_stopped', reason: 'time_called' });
+  });
+
+  it('does not resume a play that is not paused', () => {
+    const engine = bareEngine();
+    engine.resume();
+    expect(engine.state).toBe('idle');
+  });
+});
+
+describe('SimulationEngine rules and decisions', () => {
+  it('calculates movement, throw, and range values from attributes', () => {
+    const engine = bareEngine();
+    expect(engine.throwSpeed({ throwingTechnique: 100 })).toBe(80);
+    expect(engine.throwRange({ armStrength: 100, throwingTechnique: 100 })).toBeCloseTo(145.26);
+    expect(engine.timeToBall({ pos: { x: 0, y: 0 }, moveSpeed: 10 }, { x: 30, y: 40 })).toBe(5);
+  });
+
+  it('projects an airborne ball to its landing point', () => {
+    const engine = bareEngine({
+      ball: { pos: { x: 10, y: 20, z: 5 }, velocity: { x: 10, y: -4, z: 16 } },
+    });
+
+    const landing = engine.projectedLandingPoint();
+    expect(landing.x).toBeGreaterThan(10);
+    expect(landing.y).toBeLessThan(20);
+  });
+
+  it('identifies force plays and chooses the fastest primary fielder', () => {
+    const slow = { pos: { x: 0, y: 0 }, moveSpeed: 10, active: true, isCaller: false, moveTo: vi.fn() };
+    const fast = { pos: { x: 20, y: 20 }, moveSpeed: 20, active: true, isCaller: false, moveTo: vi.fn() };
+    const runner = {
+      active: true,
+      currentBase: 'first',
+      targetPos: BASES.second,
+      baseNameAtPosition: point => point === BASES.second ? 'second' : null,
+    };
+    const engine = bareEngine({
+      scenario: { hitTarget: { x: 20, y: 20 } },
+      ball: { mode: 'hit', active: true, pos: { x: 20, y: 20, z: 0 }, velocity: { x: 0, y: 0, z: 0 } },
+      runners: [runner],
+      fielders: [slow, fast],
+    });
+
+    expect(engine.isForcedPlay(runner)).toBe(false);
+    expect(engine.timeToBall(fast, { x: 20, y: 20 })).toBe(0);
+    engine.updateFielderAI();
+    expect(fast.isCaller).toBe(true);
+    expect(slow.isCaller).toBe(false);
+  });
+
+  it('records scores and outs exactly through runner callbacks', () => {
+    const events = [];
+    const runner = { status: 'active', markOut: vi.fn(), active: true, hasScored: false };
+    const engine = bareEngine({ runners: [runner], onEvent: event => events.push(event) });
+
+    engine.handleRunnerScore(runner);
+    expect(engine.score).toBe(1);
+    expect(events[0]).toMatchObject({ type: 'run_scored', score: 1 });
+
+    runner.status = 'out';
+    engine.handleRunnerOut(runner);
+    expect(engine.outs).toBe(1);
+    expect(events.at(-1)).toMatchObject({ type: 'play_stopped', reason: 'all_runners_out' });
+  });
+
+  it('advances active runners one base when the ball is dead', () => {
+    const runner = new Runner(createScene(), { number: 1, attributes: { speed: 55 } });
+    runner.setPosition(BASES.first.x, BASES.first.y);
+    const engine = bareEngine({ runners: [runner], ball: { pos: { x: 0, y: 400 } }, onEvent: vi.fn() });
+
+    expect(engine.isBallDead()).toBe(true);
+    expect(engine.ball.mode).toBe('dead');
+    expect(runner.currentBase).toBe('second');
+    expect(runner.passedBases.has('second')).toBe(true);
+    expect(engine.onEvent).toHaveBeenCalledWith({ type: 'ball_dead' });
+  });
+
+  it('turns a throw beyond arm range into a loose ball', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const scene = createScene();
+    const engine = bareEngine();
+    const ball = new Ball(scene);
+    const thrower = {
+      pos: { x: 0, y: 0 },
+      hasBall: true,
+      active: true,
+      player: { attributes: { throwingTechnique: 55, throwAccuracy: 100, armStrength: 1 } },
+    };
+    const receiver = {
+      pos: { x: 40, y: 0 },
+      active: true,
+      positionName: '1B',
+      moveSpeed: 15,
+      hasBall: false,
+    };
+    engine.ball = ball;
+    engine.fielders = [thrower, receiver];
+    engine.pendingThrow = {
+      fielder: thrower,
+      runner: null,
+      target: { x: 40, y: 0 },
+      forced: false,
+      playType: 'hold',
+      baseName: 'first',
+    };
+    ball.onThrowComplete = engine.handleThrowComplete.bind(engine);
+    ball.throwTo(thrower.pos, engine.pendingThrow.target, 60, 100, 10);
+    ball.update(2);
+
+    expect(ball.mode).toBe('loose');
+    expect(ball.active).toBe(true);
+    expect(ball.carrier).toBeNull();
+  });
+});
