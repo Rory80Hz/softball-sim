@@ -370,3 +370,15 @@ th {
   padding-left: 18px;
   line-height: 1.5;
 }
+
+/* --- Collapsible play setup ------------------------------------------- */
+.play-config .setup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.play-config.collapsed #setup-details,
+.play-config.collapsed #camera-section {
+  display: none;
+}

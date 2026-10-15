@@ -1,5 +1,5 @@
 import { attributeToRealWorld } from './physics.js';
-import { BASES, DEFAULT_POSITIONS, FIELD, PITCHING_PLATE, fieldingPosition } from '../constants.js';
+import { BASES, DEFAULT_POSITIONS, FIELD, PITCHING_PLATE, fieldingPosition, defaultPosition } from '../constants.js';
 import { Ball } from './Ball.js';
 import { Fielder } from './Fielder.js';
 import { Runner } from './Runner.js';
@@ -24,6 +24,7 @@ export class SimulationEngine {
     
     loadScenario(scenarioDef) {
        this.scenario = scenarioDef;
+       this.playStarted = false;
        const teams = this.store.getTeams();
        const fieldingTeam = teams[0]; // Assuming home team fields first
        const battingTeam = teams[1];
@@ -59,7 +60,7 @@ export class SimulationEngine {
        // Setup fielders
        fieldingTeam.players.forEach(p => {
            const position = fieldingPosition(p.position, scenarioDef.outfieldLayout);
-           const pos = scenarioDef.outfieldPositions?.[position] || DEFAULT_POSITIONS[position];
+           const pos = scenarioDef.outfieldPositions?.[position] || defaultPosition(position, scenarioDef.outfieldLayout);
            if (pos) {
                const fielder = new Fielder(this.scene, position, p);
                fielder.setPosition(pos.x, pos.y);
@@ -96,8 +97,24 @@ export class SimulationEngine {
        this.state = 'idle';
     }
 
+    // Starting positions can only be changed on a freshly loaded, unstarted play.
+    canEditPositions() {
+       return this.state === 'idle' && !this.playStarted;
+    }
+
+    setFielderStart(fielder, x, y) {
+       if (!this.canEditPositions()) return false;
+       fielder.setPosition(x, y);
+       this.scenario.outfieldPositions = {
+           ...this.scenario.outfieldPositions,
+           [fielder.positionName]: { x, y },
+       };
+       return true;
+    }
+
     startPlay(def) {
        if (def) this.loadScenario(def);
+       this.playStarted = true;
        this.state = 'playing';
        if (this.onEvent) this.onEvent({
            type: 'play_started',

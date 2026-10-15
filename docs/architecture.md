@@ -148,12 +148,14 @@ There is no global event bus. Engine events use an optional `engine.onEvent(even
 | --- | --- | --- |
 | Scenario selectors | `change` | Rebuilds the configured scenario and repositions entities. |
 | Start button (softball icon) | click | Loads the current scenario, then calls `startPlay()`. |
-| Outfield select | change | `Three outfielders + SF` (default) or `Four outfielders`. The scenario's `outfieldLayout` (`'3'`/`'4'`) remaps the CF player to LC and the SF player to RC via `fieldingPosition()`, giving LF/LC/RC/RF. Reloads the scenario. |
+| Outfield select | change | `Three outfielders + SF` (default) or `Four outfielders`. The scenario's `outfieldLayout` (`'3'`/`'4'`) remaps the CF player to LC and the SF player to RC via `fieldingPosition()`, giving LF/LC/RC/RF, starting at the wider `FOUR_OUTFIELD_POSITIONS` spread. Reloads the scenario. |
+| Collapse button (▾/▸, Play Setup header) | click | Toggles `.collapsed` on the panel, hiding the selects and camera controls while the play buttons, score and event ticker stay visible. |
+| Drag outfielder | pointer drag (before Start only) | `DirectionController` drags an outfielder on the ground plane (clamped to y >= 40 ft and 290 ft radius, orbit controls disabled during the drag) and calls `engine.setFielderStart`, which stores it in `scenario.outfieldPositions`. `ScenarioEditor.getDefinition` carries these across reloads; changing the Outfield layout clears them. Only allowed while `engine.canEditPositions()` (idle and no play started since the last load). |
 | Help button (`?`, bottom right) | click / Esc / backdrop | Opens `HelpDialog` (`src/ui/HelpDialog.js`): field positions (including SF = Short Fielder), rules used, app usage and how to direct players. Content lives in `HELP_SECTIONS`. |
+| Reset button | click | Reloads the scenario and discards dragged outfield positions (`scenario.outfieldPositions = {}`). |
 | Randomise button (dice icon) | click | Picks a random hit type, hit location and runners-on-base option (batter unchanged) and reloads the scenario; does not start the play. |
 | Pause button | click | Changes engine state to `paused`. |
 | Resume button | click | Changes engine state to `playing`. |
-| Reset button | click | Loads the current scenario without starting it. |
 | End Play button | click | Calls `endPlay()`, settles runners, clears the ball, and returns to `idle`. |
 | Camera control | click | Calls `window.appScene.reset3DView()`. |
 | Player editor fields | `input`/`change` | Mutates the roster through `store.update()`. |

@@ -1,14 +1,16 @@
 import * as THREE from 'three';
-import { BASES } from '../constants.js';
+import { BASES, OUTFIELD_POSITIONS } from '../constants.js';
 import { toWorld } from '../field/Field.js';
 
 const BASE_PICK_RADIUS = 10;
 const CLICK_SLOP_PX = 5;
+const MIN_DRAG_Y = 40;
+const MAX_DRAG_RADIUS = 290;
 
 // While the engine is paused, lets the user click a fielder or runner and
 // then click a target (ball / field spot / fielder / base) to direct them.
 export class DirectionController {
-    constructor(scene, engine, camera, domElement, container) {
+    constructor(scene, engine, camera, domElement, container, orbitControls = null) {
         this.scene = scene;
         this.engine = engine;
         this.camera = camera;
@@ -16,6 +18,8 @@ export class DirectionController {
         this.selected = null; // { kind: 'fielder' | 'runner', entity }
         this.raycaster = new THREE.Raycaster();
         this.ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        this.orbitControls = orbitControls;
+        this.dragging = null;
         this.down = null;
         this.arrows = new Map();
 
@@ -31,8 +35,64 @@ export class DirectionController {
             this.down = null;
             if (moved <= CLICK_SLOP_PX) this.handleClick(e);
         };
+        // Capture phase so a drag can disable orbiting before OrbitControls sees the press.
+        this._onDragStart = e => this.beginDrag(e);
+        this._onMove = e => this.handleMove(e);
+        this._onDragEnd = () => this.endDrag();
+        domElement.addEventListener('pointerdown', this._onDragStart, true);
+        domElement.addEventListener('pointermove', this._onMove);
+        domElement.addEventListener('pointerup', this._onDragEnd);
+        domElement.addEventListener('pointercancel', this._onDragEnd);
         domElement.addEventListener('pointerdown', this._onDown);
         domElement.addEventListener('pointerup', this._onUp);
+    }
+
+    setRay(event) {
+        const rect = this.domElement.getBoundingClientRect();
+        const ndc = new THREE.Vector2(
+            ((event.clientX - rect.left) / rect.width) * 2 - 1,
+            -((event.clientY - rect.top) / rect.height) * 2 + 1
+        );
+        this.raycaster.setFromCamera(ndc, this.camera);
+    }
+
+    // Outfielders can be dragged to new starting spots before the play starts.
+    draggableAt(event) {
+        if (!this.engine.canEditPositions()) return null;
+        this.setRay(event);
+        const picked = this.pick();
+        return picked?.kind === 'fielder' && OUTFIELD_POSITIONS.includes(picked.entity.positionName)
+            ? picked.entity : null;
+    }
+
+    beginDrag(event) {
+        const fielder = this.draggableAt(event);
+        if (!fielder) return;
+        this.dragging = fielder;
+        if (this.orbitControls) this.orbitControls.enabled = false;
+        this.domElement.setPointerCapture?.(event.pointerId);
+        this.domElement.style.cursor = 'grabbing';
+    }
+
+    handleMove(event) {
+        if (!this.dragging) {
+            this.domElement.style.cursor = this.draggableAt(event) ? 'grab' : '';
+            return;
+        }
+        this.setRay(event);
+        const point = this.groundPoint();
+        if (!point) return;
+        // Keep the fielder in fair territory and inside the fence.
+        const y = Math.max(MIN_DRAG_Y, point.y);
+        const scale = Math.min(1, MAX_DRAG_RADIUS / Math.hypot(point.x, y));
+        this.engine.setFielderStart(this.dragging, point.x * scale, y * scale);
+    }
+
+    endDrag() {
+        if (!this.dragging) return;
+        this.dragging = null;
+        if (this.orbitControls) this.orbitControls.enabled = true;
+        this.domElement.style.cursor = '';
     }
 
     // Destination of a manual order, in field coordinates, or null.
@@ -85,6 +145,10 @@ export class DirectionController {
     }
 
     dispose() {
+        this.domElement.removeEventListener('pointerdown', this._onDragStart, true);
+        this.domElement.removeEventListener('pointermove', this._onMove);
+        this.domElement.removeEventListener('pointerup', this._onDragEnd);
+        this.domElement.removeEventListener('pointercancel', this._onDragEnd);
         this.domElement.removeEventListener('pointerdown', this._onDown);
         this.domElement.removeEventListener('pointerup', this._onUp);
         this.hint.remove();
@@ -95,12 +159,7 @@ export class DirectionController {
             this.clearSelection();
             return;
         }
-        const rect = this.domElement.getBoundingClientRect();
-        const ndc = new THREE.Vector2(
-            ((event.clientX - rect.left) / rect.width) * 2 - 1,
-            -((event.clientY - rect.top) / rect.height) * 2 + 1
-        );
-        this.raycaster.setFromCamera(ndc, this.camera);
+        this.setRay(event);
         this.resolveClick(this.pick(), this.groundPoint());
     }
 

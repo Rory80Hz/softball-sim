@@ -443,3 +443,28 @@ describe('SimulationEngine throw reception', () => {
     expect(engine.findBaseReceiver(pending)).toBe(receiver);
   });
 });
+
+describe('outfield start positions', () => {
+  const base = { runners: [{ startPos: BASES.home, playerId: null }], runnerPaths: [[BASES.first]], hitType: 'fly', hitTarget: { x: 0, y: 200 } };
+
+  it('spreads four outfielders wider than three', () => {
+    const engine = createEngine();
+    engine.loadScenario({ ...base, outfieldLayout: '4' });
+    const at = name => engine.fielders.find(f => f.positionName === name).pos;
+    expect(at('LF').x).toBeLessThan(-100);
+    expect(at('RF').x).toBeGreaterThan(100);
+    expect(at('RC').x - at('LC').x).toBeGreaterThan(60);
+  });
+
+  it('lets fielders be moved before the play starts and keeps the move on startPlay', () => {
+    const engine = createEngine();
+    engine.loadScenario({ ...base });
+    const lf = engine.fielders.find(f => f.positionName === 'LF');
+    expect(engine.setFielderStart(lf, -50, 120)).toBe(true);
+    expect(engine.scenario.outfieldPositions.LF).toEqual({ x: -50, y: 120 });
+    engine.startPlay();
+    expect(lf.pos.x).toBe(-50);
+    expect(engine.setFielderStart(lf, 0, 0)).toBe(false);
+    expect(lf.pos).toMatchObject({ x: -50 });
+  });
+});

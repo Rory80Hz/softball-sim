@@ -113,7 +113,7 @@ export class FieldScene {
     this._tick = this._tick.bind(this);
     this.engine = new SimulationEngine(this.scene, this.store);
     this.engine.onEvent = (e) => console.log(e);
-    this.direction = new DirectionController(this.scene, this.engine, this.camera, this.renderer.domElement, container);
+    this.direction = new DirectionController(this.scene, this.engine, this.camera, this.renderer.domElement, container, this.controls);
     this._tick();
   }
 

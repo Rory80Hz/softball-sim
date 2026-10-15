@@ -93,3 +93,16 @@ const FOUR_OUTFIELD_REMAP = { CF: 'LC', SF: 'RC' };
 export function fieldingPosition(position, layout = '3') {
   return layout === '4' ? FOUR_OUTFIELD_REMAP[position] || position : position;
 }
+
+// Starting spots used instead of DEFAULT_POSITIONS when four outfielders are
+// in play: spread evenly across the field with the corner fielders shallower.
+export const FOUR_OUTFIELD_POSITIONS = {
+  LF: { x: -115, y: 195 },
+  LC: { x: -40, y: 235 },
+  RC: { x: 40, y: 235 },
+  RF: { x: 115, y: 195 },
+};
+
+export function defaultPosition(position, layout = '3') {
+  return (layout === '4' && FOUR_OUTFIELD_POSITIONS[position]) || DEFAULT_POSITIONS[position];
+}

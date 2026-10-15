@@ -34,7 +34,11 @@ export class ScenarioEditor {
         this.el = document.createElement('div');
         this.el.className = 'panel play-config';
         this.el.innerHTML = `
-            <h2>Play Setup</h2>
+            <div class="setup-header">
+                <h2>Play Setup</h2>
+                <button class="btn icon-btn" id="btn-collapse" aria-label="Collapse play setup" aria-expanded="true" title="Collapse / expand play setup">&#9662;</button>
+            </div>
+            <div id="setup-details">
             <label for="hit-type">Hit type</label>
             <select id="hit-type">
                 ${this.hitTypes.map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}
@@ -53,6 +57,7 @@ export class ScenarioEditor {
             </select>
             <label for="batter-select" style="margin-top: 8px;">Batter</label>
             <select id="batter-select"></select>
+            </div>
             <div style="display: flex; gap: 5px;">
                 <button class="btn primary icon-btn" id="btn-start" aria-label="Start hit and run" title="Start hit and run">&#129358;</button>
                 <button class="btn icon-btn" id="btn-pause" aria-label="Pause play" title="Pause play">&#10074;&#10074;</button>
@@ -64,7 +69,7 @@ export class ScenarioEditor {
             <p id="play-status" style="margin: 10px 0 0; color: var(--text-dim);">Runs: 0 | Outs: 0</p>
             <div id="event-ticker" class="event-ticker" aria-live="polite"></div>
 
-            <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 10px;">
+            <div id="camera-section" style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 10px;">
                 <label>Camera Controls</label>
                 <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 5px;">
                     <button class="btn icon-btn" id="btn-cam-3d" aria-label="Reset 3D view" title="Reset 3D view">&#9670;</button>
@@ -111,7 +116,11 @@ export class ScenarioEditor {
         hitLocation.addEventListener('change', rebuild);
         runnerOption.addEventListener('change', rebuild);
         batterSelect.addEventListener('change', rebuild);
-        outfieldLayout.addEventListener('change', rebuild);
+        // Dragged positions belong to a layout, so switching layout restores defaults.
+        outfieldLayout.addEventListener('change', () => {
+            if (this.engine.scenario) this.engine.scenario.outfieldPositions = {};
+            rebuild();
+        });
 
         this.el.querySelector('#btn-start').addEventListener('click', () => {
              // Reset first so if they click it mid-play or after a play, it restarts clean
@@ -122,7 +131,16 @@ export class ScenarioEditor {
              this.engine.startPlay();
         });
 
+        const collapseButton = this.el.querySelector('#btn-collapse');
+        collapseButton.addEventListener('click', () => {
+            const collapsed = this.el.classList.toggle('collapsed');
+            collapseButton.innerHTML = collapsed ? '&#9656;' : '&#9662;';
+            collapseButton.setAttribute('aria-expanded', String(!collapsed));
+        });
+
+        // Reset also discards dragged outfield positions.
         this.el.querySelector('#btn-reset').addEventListener('click', () => {
+             if (this.engine.scenario) this.engine.scenario.outfieldPositions = {};
              this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption, batterSelect, outfieldLayout));
                resetScoreboard();
         });
@@ -199,7 +217,7 @@ export class ScenarioEditor {
         });
 
         return {
-            outfieldPositions: {},
+            outfieldPositions: { ...this.engine?.scenario?.outfieldPositions },
             outfieldLayout: outfieldLayout?.value || '3',
             runners,
             hitTarget: { ...location[2] },

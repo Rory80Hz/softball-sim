@@ -34,6 +34,7 @@ export const HELP_SECTIONS = [
       <ul>
         <li><b>Play Setup panel</b> (top left): pick hit type, hit location, runners on base, outfield layout and batter. The field updates immediately.</li>
         <li>🥎 <b>Start</b> runs the play. ❚❚ <b>Pause</b> / ▶ <b>Resume</b> freeze and continue it. ↻ <b>Reset</b> reloads the setup.</li>
+        <li><b>Outfield positions:</b> before pressing Start, drag any outfielder (including SF) to a new starting spot. ↻ Reset or switching the Outfield layout restores the default spread. The ▾ button beside "Play Setup" collapses the panel to just the play buttons.</li>
         <li>🎲 <b>Randomise</b> picks a random hit type, location and runners.</li>
         <li>⏰ <b>Call time</b> ends the play immediately.</li>
         <li><b>Camera:</b> drag to orbit, scroll to zoom, ◆ resets the view.</li>
