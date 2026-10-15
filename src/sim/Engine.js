@@ -130,6 +130,112 @@ export class SimulationEngine {
         }
     }
 
+    // --- Manual direction (used while paused) ---
+
+    directFielder(fielder, point) {
+        if (!fielder?.active || fielder.hasBall) return false;
+        fielder.manualTarget = true;
+        fielder.manualChase = false;
+        fielder.isCaller = false;
+        fielder.moveTo(point.x, point.y);
+        if (this.onEvent) this.onEvent({ type: 'manual_move', fielder, target: point });
+        return true;
+    }
+
+    directFielderToBall(fielder) {
+        if (!fielder?.active || fielder.hasBall || !this.ball.active) return false;
+        fielder.manualTarget = true;
+        fielder.manualChase = true;
+        if (this.onEvent) this.onEvent({ type: 'manual_chase', fielder });
+        return true;
+    }
+
+    directThrow(fielder, receiver) {
+        if (!fielder?.active || !fielder.hasBall || !receiver?.active || receiver === fielder) return false;
+        const attributes = fielder.player.attributes;
+        const target = { x: receiver.pos.x, y: receiver.pos.y };
+        receiver.manualTarget = true;
+        receiver.manualChase = false;
+        receiver.targetPos = null;
+        fielder.manualTarget = true;
+        fielder.hasBall = false;
+        this.pendingTag = null;
+        this.pendingThrow = {
+            runner: null,
+            target,
+            forced: false,
+            playType: 'manual',
+            baseName: null,
+            fielder,
+            receiver,
+        };
+        this.ball.throwTo(
+            fielder.pos,
+            target,
+            this.throwSpeed(attributes),
+            attributes.throwAccuracy,
+            this.throwRange(attributes),
+            5 + (100 - (Number(attributes.throwingTechnique) || 1)) * 0.08
+        );
+        if (this.onEvent) this.onEvent({ type: 'manual_throw', fielder, receiver });
+        return true;
+    }
+
+    validRunnerBases(runner) {
+        if (!runner?.active || runner.isOut) return [];
+        const order = ['home', 'first', 'second', 'third', 'home'];
+        const from = order.indexOf(runner.currentBase || 'home');
+        const valid = order.slice(from + 1);
+        const onBase = runner.baseNameAtPosition(runner.pos);
+        if (!onBase && runner.currentBase) valid.unshift(runner.currentBase);
+        return [...new Set(valid)];
+    }
+
+    directRunner(runner, baseName) {
+        if (!this.validRunnerBases(runner).includes(baseName)) return false;
+        const order = ['home', 'first', 'second', 'third', 'home'];
+        runner.manual = true;
+        const from = order.indexOf(runner.currentBase || 'home');
+        const onBase = runner.baseNameAtPosition(runner.pos);
+        if (baseName === runner.currentBase && !onBase) {
+            runner.returnToBase();
+        } else {
+            const points = order.slice(from + 1, order.lastIndexOf(baseName, 4) + 1)
+                .map(name => BASES[name]);
+            runner.isReturning = false;
+            runner.runPath(points);
+        }
+        if (this.onEvent) this.onEvent({ type: 'manual_run', runner, baseName });
+        return true;
+    }
+
+    updateManualFielders() {
+        this.fielders.forEach(fielder => {
+            if (!fielder.active || !fielder.manualChase || fielder.hasBall) return;
+            if (!this.ball.active || !['hit', 'loose'].includes(this.ball.mode)) return;
+            const inFlight = this.ball.pos.z > 0.5 && this.scenario?.hitType !== 'grounder';
+            const point = inFlight ? this.projectedLandingPoint() : this.ball.pos;
+            fielder.moveTo(point.x, point.y);
+        });
+    }
+
+    // Manually-controlled fielders holding the ball tag runners and force at bases themselves.
+    updateManualPlays() {
+        this.fielders.filter(f => f.active && f.hasBall && f.manualTarget).forEach(fielder => {
+            this.runners.filter(r => r.active && !r.isOut).forEach(runner => {
+                if (runner.baseNameAtPosition(runner.pos)) return;
+                const reach = Math.hypot(fielder.pos.x - runner.pos.x, fielder.pos.y - runner.pos.y);
+                const heading = runner.targetPos ? runner.baseNameAtPosition(runner.targetPos) : null;
+                const atBase = heading && Math.hypot(fielder.pos.x - BASES[heading].x, fielder.pos.y - BASES[heading].y) <= 3;
+                const forcedOut = atBase && !runner.isReturning && this.isForcedPlay(runner);
+                if (reach <= 4.5 || forcedOut) {
+                    fielder.mesh.material.color.setHex(0x33ff33);
+                    runner.markOut();
+                }
+            });
+        });
+    }
+
     endPlay() {
         this.state = 'idle';
         this.pendingThrow = null;
@@ -162,21 +268,22 @@ export class SimulationEngine {
         
         this.ball.update(dt);
         this.runners.forEach(r => r.update(dt));
+        this.updateManualFielders();
         this.updateFielderAI();
 
         
         this.fielders.forEach(f => f.update(dt));
         if (this.ball.carrier) this.ball.setCarrier(this.ball.carrier);
         this.updateTagging();
-        
-        // Simple check: did a fielder reached the ball?
-        // Simple check: did a fielder reached the ball?
+        this.updateManualPlays();
+
+        // Simple check: did a fielder reach the ball?
         if (this.ball.active && ['hit', 'loose'].includes(this.ball.mode)) {
             const distFromHome = Math.hypot(this.ball.pos.x, this.ball.pos.y);
 
             for(let f of this.fielders) {
                 if(!f.active) continue;
-                if (!f.isCaller) continue;
+                if (!f.isCaller && !f.manualTarget) continue;
                 
                 // Prevent catcher from instantly intercepting hits while over the plate
                 if (f.positionName === 'C' && this.scenario.hitType === 'grounder' && distFromHome < 15) continue;
@@ -494,6 +601,8 @@ export class SimulationEngine {
             });
         }
 
+        if (fielder.manualTarget) return;
+
         const play = this.selectDefensivePlay(fielder);
         const runner = play?.runner;
         const forced = play?.forced || false;
@@ -554,6 +663,13 @@ export class SimulationEngine {
             fielder.canMoveWithBall = false;
         });
         this.ball.setCarrier(receiver);
+
+        if (pendingThrow.playType === 'manual') {
+            receiver.canMoveWithBall = true;
+            receiver.mesh.material.color.setHex(0x33ff33);
+            if (this.onEvent) this.onEvent({ type: 'ball_collected', fielder: receiver });
+            return;
+        }
 
         if (pendingThrow.runner?.active && pendingThrow.playType === 'force') {
             const distance = Math.hypot(
@@ -638,6 +754,10 @@ export class SimulationEngine {
     }
 
     findBaseReceiver(pendingThrow) {
+        if (pendingThrow.receiver) {
+            const r = pendingThrow.receiver;
+            return r.active && Math.hypot(r.pos.x - pendingThrow.target.x, r.pos.y - pendingThrow.target.y) <= 4.5 ? r : null;
+        }
         const candidates = this.fielders.filter(fielder => (
             fielder.active && fielder !== pendingThrow.fielder
         ));
@@ -680,7 +800,7 @@ export class SimulationEngine {
     }
 
     handleBaseReached(runner, baseName) {
-        if (baseName === 'home' || !runner.active || !runner.path.length) return;
+        if (runner.manual || baseName === 'home' || !runner.active || !runner.path.length) return;
 
         const nextBase = runner.baseNameAtPosition(runner.path[0]);
         const fielder = this.fielders

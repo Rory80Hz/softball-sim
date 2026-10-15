@@ -11,6 +11,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { ViewHelper } from "three/addons/helpers/ViewHelper.js";
 import { SimulationEngine } from "../sim/Engine.js";
 import { createStore } from "../store.js";
+import { DirectionController } from "../ui/DirectionController.js";
 
 export class FieldScene {
   constructor(container, store = createStore()) {
@@ -112,6 +113,7 @@ export class FieldScene {
     this._tick = this._tick.bind(this);
     this.engine = new SimulationEngine(this.scene, this.store);
     this.engine.onEvent = (e) => console.log(e);
+    this.direction = new DirectionController(this.scene, this.engine, this.camera, this.renderer.domElement, container);
     this._tick();
   }
 

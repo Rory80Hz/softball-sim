@@ -148,6 +148,10 @@ export class ScenarioEditor {
             if (e.type === 'ball_collected') addTickerEvent(`${e.fielder.positionName} fields the ball`);
             if (e.type === 'ball_bobbled') addTickerEvent(`${e.fielder.positionName} bobbles the ball!`);
             if (e.type === 'ball_thrown') addTickerEvent(`${e.fielder.positionName} throws to ${e.playType === 'force' ? 'the base' : 'contain the runner'}`);
+            if (e.type === 'manual_move') addTickerEvent(`${e.fielder.positionName} heads to the spot you picked`);
+            if (e.type === 'manual_chase') addTickerEvent(`${e.fielder.positionName} goes after the ball`);
+            if (e.type === 'manual_throw') addTickerEvent(`${e.fielder.positionName} throws to ${e.receiver.positionName}`);
+            if (e.type === 'manual_run') addTickerEvent(`Runner sent to ${e.baseName}`);
             if (e.type === 'runner_cut_off') addTickerEvent(`Runner cut off at ${e.baseName}`);
             if (e.type === 'runner_held') addTickerEvent(`Runner holds at ${e.baseName}`);
             if (e.type === 'tag_attempt') addTickerEvent(`${e.fielder.positionName} attempts a tag`);

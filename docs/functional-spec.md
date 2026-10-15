@@ -12,6 +12,7 @@ This specification defines externally observable behavior for unit tests, integr
 - A fielder is a defensive player.
 - `active` means the object participates in simulation updates.
 - A play may be `idle`, `playing`, or `paused`.
+- While a play is `paused`, the user MAY direct players: select a fielder and click the ball or a field spot to send it there; if the fielder holds the ball, click another fielder to throw (success depends on throwing attributes); select a runner and click a valid base (a later base, or the last safe base) to send them. Directed fielders are no longer controlled by the AI.
 - A ball may be `idle`, `hit`, `throw`, `loose`, `held`, or `dead`.
 
 ## 2. Player and Team Data

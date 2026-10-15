@@ -268,3 +268,65 @@ describe('SimulationEngine rules and decisions', () => {
     expect(engine.state).toBe('idle');
   });
 });
+
+describe('SimulationEngine manual direction', () => {
+  const makeFielder = (pos, extra = {}) => ({
+    active: true, hasBall: false, positionName: 'X', pos: { ...pos }, targetPos: null,
+    moveTo: vi.fn(), player: { attributes: { throwAccuracy: 100, throwingTechnique: 50, armStrength: 50 } },
+    mesh: { material: { color: { setHex: vi.fn() } } }, ...extra,
+  });
+  const makeRunner = (currentBase, extra = {}) => ({
+    active: true, isOut: false, currentBase, pos: { ...(BASES[currentBase] || BASES.home) },
+    baseNameAtPosition: pos => Object.keys(BASES).find(n => BASES[n].x === pos.x && BASES[n].y === pos.y) || null,
+    runPath: vi.fn(), returnToBase: vi.fn(), ...extra,
+  });
+
+  it('directs a fielder and marks it as manually controlled', () => {
+    const engine = bareEngine();
+    const fielder = makeFielder({ x: 0, y: 50 });
+    expect(engine.directFielder(fielder, { x: 10, y: 80 })).toBe(true);
+    expect(fielder.manualTarget).toBe(true);
+    expect(fielder.moveTo).toHaveBeenCalledWith(10, 80);
+  });
+
+  it('only lets the ball carrier throw, to another fielder', () => {
+    const throwTo = vi.fn();
+    const engine = bareEngine({ ball: { ...bareEngine().ball, throwTo } });
+    const thrower = makeFielder({ x: 0, y: 50 });
+    const receiver = makeFielder({ x: 60, y: 60 });
+    expect(engine.directThrow(thrower, receiver)).toBe(false);
+    thrower.hasBall = true;
+    expect(engine.directThrow(thrower, thrower)).toBe(false);
+    expect(engine.directThrow(thrower, receiver)).toBe(true);
+    expect(throwTo).toHaveBeenCalled();
+    expect(engine.pendingThrow.playType).toBe('manual');
+    expect(thrower.hasBall).toBe(false);
+  });
+
+  it('only offers legal bases to runners', () => {
+    const engine = bareEngine();
+    expect(engine.validRunnerBases(makeRunner('first'))).toEqual(['second', 'third', 'home']);
+    const between = makeRunner('first', { pos: { x: 30, y: 60 } });
+    expect(engine.validRunnerBases(between)).toEqual(['first', 'second', 'third', 'home']);
+    expect(engine.directRunner(makeRunner('second'), 'first')).toBe(false);
+  });
+
+  it('runs a runner through intermediate bases and back to the safe base', () => {
+    const engine = bareEngine();
+    const runner = makeRunner('first');
+    expect(engine.directRunner(runner, 'third')).toBe(true);
+    expect(runner.runPath).toHaveBeenCalledWith([BASES.second, BASES.third]);
+
+    const between = makeRunner('first', { pos: { x: 30, y: 60 } });
+    engine.directRunner(between, 'first');
+    expect(between.returnToBase).toHaveBeenCalled();
+  });
+
+  it('lets a manual fielder with the ball tag a runner between bases', () => {
+    const fielder = makeFielder({ x: 30, y: 60 }, { hasBall: true, manualTarget: true });
+    const runner = makeRunner('first', { pos: { x: 31, y: 61 }, markOut: vi.fn() });
+    const engine = bareEngine({ fielders: [fielder], runners: [runner] });
+    engine.updateManualPlays();
+    expect(runner.markOut).toHaveBeenCalled();
+  });
+});

@@ -235,6 +235,16 @@ Catch and stop attempts incorporate the fielder's `catchAccuracy` attribute and 
 
 Bases do not catch balls or record outs independently. A runner who is out stops moving and cannot later score. When all runners in the active play are out, the engine stops the play.
 
+### Manual direction (paused play)
+
+`DirectionController` (`src/ui/DirectionController.js`) is created by `FieldScene`. While the engine is `paused`, a click (not an orbit drag) raycasts against fielder, runner and ball meshes and the ground plane.
+
+- Click a fielder to select it (yellow highlight). Then click the ball (`engine.directFielderToBall`) or a field spot (`engine.directFielder`).
+- If the selected fielder holds the ball, click another fielder to throw (`engine.directThrow`). The throw uses the normal throw speed/range/accuracy rules, so it can miss.
+- Click a runner, then a base within 10 ft of the click (`engine.directRunner`). `validRunnerBases` allows only later bases in order, plus the last safe base if the runner is between bases.
+
+Manually directed fielders get `manualTarget`: the AI no longer moves or auto-throws for them, they may field the ball without being the AI caller, and while holding the ball they tag runners in reach or force at a base (`updateManualPlays`). Manual runners skip the AI hold/advance check in `handleBaseReached`. Manual state resets when a scenario loads. Ticker events: `manual_move`, `manual_chase`, `manual_throw`, `manual_run`.
+
 ## Coordinate and Timing Conventions
 
 - Distances and positions in simulation code are feet.
