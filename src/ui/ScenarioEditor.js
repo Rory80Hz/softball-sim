@@ -1,4 +1,4 @@
-import { BASES } from '../constants.js';
+import { BASES, OUTFIELD_LAYOUTS } from '../constants.js';
 
 export class ScenarioEditor {
     constructor(engine, container) {
@@ -47,6 +47,10 @@ export class ScenarioEditor {
             <select id="runner-option">
                 ${this.runnerOptions.map((option, index) => `<option value="${index}">${option.label}</option>`).join('')}
             </select>
+            <label for="outfield-layout" style="margin-top: 8px;">Outfield</label>
+            <select id="outfield-layout">
+                ${Object.entries(OUTFIELD_LAYOUTS).map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}
+            </select>
             <label for="batter-select" style="margin-top: 8px;">Batter</label>
             <select id="batter-select"></select>
             <div style="display: flex; gap: 5px;">
@@ -76,6 +80,7 @@ export class ScenarioEditor {
         const hitLocation = this.el.querySelector('#hit-location');
         const runnerOption = this.el.querySelector('#runner-option');
         const batterSelect = this.el.querySelector('#batter-select');
+        const outfieldLayout = this.el.querySelector('#outfield-layout');
         const battingTeam = this.engine.store.getTeams()[1];
         batterSelect.innerHTML = battingTeam.players
             .slice()
@@ -96,20 +101,21 @@ export class ScenarioEditor {
         };
         
         // Initial load of scenario so players are in position before hit
-        this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption, batterSelect));
+        this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption, batterSelect, outfieldLayout));
 
         const rebuild = () => {
-            this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption, batterSelect));
+            this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption, batterSelect, outfieldLayout));
             resetScoreboard();
         };
         hitType.addEventListener('change', rebuild);
         hitLocation.addEventListener('change', rebuild);
         runnerOption.addEventListener('change', rebuild);
         batterSelect.addEventListener('change', rebuild);
+        outfieldLayout.addEventListener('change', rebuild);
 
         this.el.querySelector('#btn-start').addEventListener('click', () => {
              // Reset first so if they click it mid-play or after a play, it restarts clean
-             this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption, batterSelect));
+             this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption, batterSelect, outfieldLayout));
              resetScoreboard();
              
              // Start the run
@@ -117,7 +123,7 @@ export class ScenarioEditor {
         });
 
         this.el.querySelector('#btn-reset').addEventListener('click', () => {
-             this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption, batterSelect));
+             this.engine.loadScenario(this.getDefinition(hitType, hitLocation, runnerOption, batterSelect, outfieldLayout));
                resetScoreboard();
         });
         
@@ -179,7 +185,7 @@ export class ScenarioEditor {
         });
     }
 
-    getDefinition(hitType, hitLocation, runnerOption, batterSelect) {
+    getDefinition(hitType, hitLocation, runnerOption, batterSelect, outfieldLayout) {
         const location = this.hitLocations.find(([value]) => value === hitLocation.value);
         const selectedRunners = this.runnerOptions[Number(runnerOption.value)].bases;
         const baseOrder = ['first', 'second', 'third', 'home'];
@@ -194,6 +200,7 @@ export class ScenarioEditor {
 
         return {
             outfieldPositions: {},
+            outfieldLayout: outfieldLayout?.value || '3',
             runners,
             hitTarget: { ...location[2] },
             hitType: hitType.value,

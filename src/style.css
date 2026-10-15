@@ -315,3 +315,58 @@ th {
     z-index: 50;
     pointer-events: none; /* Passes clicks through unless specifically intercepted by our listener */
 }
+
+/* --- Help dialog ------------------------------------------------------ */
+.help-btn {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 100;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-weight: bold;
+}
+
+.help-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-overlay[hidden] {
+  display: none;
+}
+
+.help-dialog {
+  width: min(640px, 92vw);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.help-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.help-body {
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.help-body h3 {
+  margin: 14px 0 6px;
+  color: var(--accent);
+}
+
+.help-body ul {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.5;
+}

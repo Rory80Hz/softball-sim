@@ -2,6 +2,7 @@ import './style.css';
 import { FieldScene } from './field/Scene.js';
 import { createStore } from './store.js';
 import { PlayerEditor } from './ui/PlayerEditor.js';
+import { HelpDialog } from './ui/HelpDialog.js';
 
 const app = document.getElementById('app');
 app.innerHTML = '<div id="view-root"><div id="field-test" style="width:100%;height:100vh;"></div></div>';
@@ -24,3 +25,4 @@ playerEditorContainer.style.right = '10px';
 playerEditorContainer.style.zIndex = '100';
 app.appendChild(playerEditorContainer);
 new PlayerEditor(store, playerEditorContainer);
+new HelpDialog(app);

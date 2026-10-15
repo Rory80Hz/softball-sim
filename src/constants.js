@@ -83,3 +83,13 @@ export const ALL_POSITIONS = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'LC', 'CF'
 // bases that they are treated the same way, all fielders are adjustable).
 export const OUTFIELD_POSITIONS = ['LF', 'LC', 'CF', 'RC', 'RF', 'SF'];
 export const INFIELD_POSITIONS = ['P', 'C', '1B', '2B', '3B', 'SS'];
+
+// Outfield layouts: '3' = LF/CF/RF plus a short fielder (SF); '4' = LF/LC/RC/RF.
+// The roster keeps the same ten players, so in the 4-outfield layout the CF
+// player plays left-center and the SF player plays right-center.
+export const OUTFIELD_LAYOUTS = { '3': 'Three outfielders + SF', '4': 'Four outfielders' };
+const FOUR_OUTFIELD_REMAP = { CF: 'LC', SF: 'RC' };
+
+export function fieldingPosition(position, layout = '3') {
+  return layout === '4' ? FOUR_OUTFIELD_REMAP[position] || position : position;
+}

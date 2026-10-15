@@ -45,6 +45,19 @@ describe('SimulationEngine lifecycle', () => {
     expect(engine.runners[1].player.id).toBe(battingTeam.players[0].id);
   });
 
+  it('supports a four-outfielder layout (LF, LC, RC, RF)', () => {
+    const engine = createEngine();
+    const base = { runners: [{ startPos: BASES.home, playerId: null }], runnerPaths: [[BASES.first]], hitType: 'fly', hitTarget: { x: 0, y: 200 } };
+    engine.loadScenario({ ...base, outfieldLayout: '4' });
+    const names = engine.fielders.map(f => f.positionName);
+    expect(names).toHaveLength(10);
+    expect(names).toEqual(expect.arrayContaining(['LF', 'LC', 'RC', 'RF']));
+    expect(names).not.toContain('CF');
+    expect(names).not.toContain('SF');
+    engine.loadScenario({ ...base, outfieldLayout: '3' });
+    expect(engine.fielders.map(f => f.positionName)).toEqual(expect.arrayContaining(['CF', 'SF']));
+  });
+
   it('loads a scenario into fielders and runners in an idle state', () => {
     const engine = createEngine();
     engine.loadScenario({

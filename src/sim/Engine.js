@@ -1,5 +1,5 @@
 import { attributeToRealWorld } from './physics.js';
-import { BASES, DEFAULT_POSITIONS, FIELD, PITCHING_PLATE } from '../constants.js';
+import { BASES, DEFAULT_POSITIONS, FIELD, PITCHING_PLATE, fieldingPosition } from '../constants.js';
 import { Ball } from './Ball.js';
 import { Fielder } from './Fielder.js';
 import { Runner } from './Runner.js';
@@ -58,9 +58,10 @@ export class SimulationEngine {
 
        // Setup fielders
        fieldingTeam.players.forEach(p => {
-           const pos = scenarioDef.outfieldPositions?.[p.position] || DEFAULT_POSITIONS[p.position];
+           const position = fieldingPosition(p.position, scenarioDef.outfieldLayout);
+           const pos = scenarioDef.outfieldPositions?.[position] || DEFAULT_POSITIONS[position];
            if (pos) {
-               const fielder = new Fielder(this.scene, p.position, p);
+               const fielder = new Fielder(this.scene, position, p);
                fielder.setPosition(pos.x, pos.y);
                fielder.mesh.material.color.setHex(0xff3333);
                this.fielders.push(fielder);

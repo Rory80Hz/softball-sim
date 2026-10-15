@@ -148,6 +148,8 @@ There is no global event bus. Engine events use an optional `engine.onEvent(even
 | --- | --- | --- |
 | Scenario selectors | `change` | Rebuilds the configured scenario and repositions entities. |
 | Start button (softball icon) | click | Loads the current scenario, then calls `startPlay()`. |
+| Outfield select | change | `Three outfielders + SF` (default) or `Four outfielders`. The scenario's `outfieldLayout` (`'3'`/`'4'`) remaps the CF player to LC and the SF player to RC via `fieldingPosition()`, giving LF/LC/RC/RF. Reloads the scenario. |
+| Help button (`?`, bottom right) | click / Esc / backdrop | Opens `HelpDialog` (`src/ui/HelpDialog.js`): field positions (including SF = Short Fielder), rules used, app usage and how to direct players. Content lives in `HELP_SECTIONS`. |
 | Randomise button (dice icon) | click | Picks a random hit type, hit location and runners-on-base option (batter unchanged) and reloads the scenario; does not start the play. |
 | Pause button | click | Changes engine state to `paused`. |
 | Resume button | click | Changes engine state to `playing`. |
