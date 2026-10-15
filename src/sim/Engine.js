@@ -272,7 +272,10 @@ export class SimulationEngine {
         this.updateFielderAI();
 
         
-        this.fielders.forEach(f => f.update(dt));
+        this.fielders.forEach(f => {
+            if (f.missTimer > 0) f.missTimer -= dt;
+            f.update(dt);
+        });
         if (this.ball.carrier) this.ball.setCarrier(this.ball.carrier);
         this.updateTagging();
         this.updateManualPlays();
@@ -291,19 +294,28 @@ export class SimulationEngine {
                 const fielderZ = 4; // Fielder is at height 4ft
 
                 const distToBall = Math.hypot(f.pos.x - this.ball.pos.x, f.pos.y - this.ball.pos.y, fielderZ - this.ball.pos.z);
+                if (f.missedBall && (distToBall >= 4.5 || f.missTimer <= 0)) f.missedBall = false;
                 if (distToBall < 4.5) { // 4.5ft realistic reach radius
+                    // One attempt per pass: a fielder who missed can't re-roll while the ball is still in reach.
+                    if (f.missedBall) continue;
                     const catchAcc = Number(f.player?.attributes?.catchAccuracy) || 55;
                     const ballSpeed = Math.hypot(this.ball.velocity.x, this.ball.velocity.y, this.ball.velocity.z);
-                    // Base catch chance between 60% and 99%, scaled down by ball velocity
-                    const catchProb = Math.max(0.2, Math.min(0.99, (catchAcc / 100) * 0.95 + 0.1 - (ballSpeed / 200)));
+                    const airborne = this.ball.pos.z > 2;
+                    // Airborne balls are easier than grounders but still depend on skill and ball speed.
+                    const catchProb = airborne
+                        ? Math.max(0.4, Math.min(0.97, 0.6 + (catchAcc / 100) * 0.35 - ballSpeed / 400))
+                        : Math.max(0.2, Math.min(0.99, (catchAcc / 100) * 0.95 + 0.1 - (ballSpeed / 200)));
                     if (Math.random() < catchProb) {
                         f.mesh.material.color.setHex(0x33ff33);
                         this.handleBallCaught(f);
                     } else {
-                        // Bobble / missed stop: ball deflects loosely
-                        this.ball.velocity.x *= 0.3;
-                        this.ball.velocity.y *= 0.3;
-                        this.ball.velocity.z = 2;
+                        // Missed ground ball: it skips past along the ground
+                        this.ball.velocity.x *= 0.6;
+                        this.ball.velocity.y *= 0.6;
+                        this.ball.velocity.z = 0;
+                        this.ball.pos.z = Math.min(this.ball.pos.z, 0.5);
+                        f.missedBall = true;
+                        f.missTimer = 0.4;
                         if (this.onEvent) this.onEvent({ type: 'ball_bobbled', fielder: f });
                     }
                     break;
@@ -644,7 +656,7 @@ export class SimulationEngine {
 
         if (this.ball.throwMissed) {
             pendingThrow.fielder.hasBall = false;
-            this.ball.releaseAt(pendingThrow.target);
+            this.ball.releaseAt(this.ball.throwTarget || pendingThrow.target);
             this.ball.velocity = this.throwMissVelocity(pendingThrow.fielder, pendingThrow.target);
             return;
         }
@@ -653,7 +665,7 @@ export class SimulationEngine {
 
         if (!receiver) {
             pendingThrow.fielder.hasBall = false;
-            this.ball.releaseAt(pendingThrow.target);
+            this.ball.releaseAt(this.ball.throwTarget || pendingThrow.target);
             this.ball.velocity = this.throwMissVelocity(pendingThrow.fielder, pendingThrow.target);
             return;
         }
@@ -662,6 +674,8 @@ export class SimulationEngine {
             fielder.hasBall = fielder === receiver;
             fielder.canMoveWithBall = false;
         });
+        // The receiver stops dead on the catch; a stale destination would carry them off with the ball.
+        receiver.targetPos = null;
         this.ball.setCarrier(receiver);
 
         if (pendingThrow.playType === 'manual') {
@@ -704,12 +718,19 @@ export class SimulationEngine {
         }
     }
 
+    stopWithBall(fielder) {
+        if (!fielder.hasBall) return;
+        fielder.targetPos = null;
+        fielder.canMoveWithBall = false;
+    }
+
     updateTagging() {
         if (!this.pendingTag) return;
 
         const { runner, fielder } = this.pendingTag;
         if (!runner.active || !fielder.active || !fielder.hasBall) {
             this.pendingTag = null;
+            this.stopWithBall(fielder);
             return;
         }
 
@@ -717,10 +738,12 @@ export class SimulationEngine {
         const targetBase = runner.targetPos ? runner.baseNameAtPosition(runner.targetPos) : null;
         if (!targetBase && runner.currentBase === this.pendingTag.baseName) {
             this.pendingTag = null;
+            this.stopWithBall(fielder);
             return;
         }
         if (Math.hypot(fielder.pos.x - runner.pos.x, fielder.pos.y - runner.pos.y) <= 4.5) {
             this.pendingTag = null;
+            this.stopWithBall(fielder);
             fielder.mesh.material.color.setHex(0x33ff33);
             runner.markOut();
             if (this.outs < 3) this.throwAtNextRunner(fielder);
@@ -753,20 +776,20 @@ export class SimulationEngine {
         if (this.onEvent) this.onEvent({ type: 'ball_thrown', fielder, target, playType: forced ? 'force' : 'hold' });
     }
 
+    // Receivers must be within reach of where the ball actually lands, so an
+    // inaccurate throw can sail past them even when it was aimed correctly.
     findBaseReceiver(pendingThrow) {
+        const landing = this.ball.throwTarget || pendingThrow.target;
+        const withinReach = r => Math.hypot(r.pos.x - landing.x, r.pos.y - landing.y) <= 4.5;
         if (pendingThrow.receiver) {
-            const r = pendingThrow.receiver;
-            return r.active && Math.hypot(r.pos.x - pendingThrow.target.x, r.pos.y - pendingThrow.target.y) <= 4.5 ? r : null;
+            return pendingThrow.receiver.active && withinReach(pendingThrow.receiver) ? pendingThrow.receiver : null;
         }
         const candidates = this.fielders.filter(fielder => (
-            fielder.active && fielder !== pendingThrow.fielder
+            fielder.active && fielder !== pendingThrow.fielder && this.isInfielder(fielder.positionName)
         ));
-        const receiver = this.selectThrowReceiver(pendingThrow, candidates);
-        if (!receiver) return null;
-        return Math.hypot(
-            receiver.pos.x - pendingThrow.target.x,
-            receiver.pos.y - pendingThrow.target.y
-        ) <= 4.5 ? receiver : null;
+        return candidates
+            .filter(withinReach)
+            .sort((a, b) => this.timeToBall(a, landing) - this.timeToBall(b, landing))[0] || null;
     }
 
     selectThrowReceiver(pendingThrow, candidates) {

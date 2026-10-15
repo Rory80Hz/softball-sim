@@ -135,6 +135,7 @@ export class FieldScene {
     const dt = Math.min(this._clock.getDelta(), 0.1);
     this._animateCallbacks.forEach((fn) => fn(dt));
     this.engine.update(dt);
+    this.direction.update();
     this.controls.update();
     this.renderer.clear();
     this.renderer.render(this.scene, this.camera);

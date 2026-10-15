@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { BASES } from '../constants.js';
+import { toWorld } from '../field/Field.js';
 
 const BASE_PICK_RADIUS = 10;
 const CLICK_SLOP_PX = 5;
@@ -16,6 +17,7 @@ export class DirectionController {
         this.raycaster = new THREE.Raycaster();
         this.ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
         this.down = null;
+        this.arrows = new Map();
 
         this.hint = document.createElement('div');
         this.hint.style.cssText = 'position:absolute;bottom:12px;left:50%;transform:translateX(-50%);padding:6px 12px;background:rgba(17,24,32,.85);color:#fff;font:13px sans-serif;border-radius:6px;pointer-events:none;display:none;z-index:50;';
@@ -31,6 +33,55 @@ export class DirectionController {
         };
         domElement.addEventListener('pointerdown', this._onDown);
         domElement.addEventListener('pointerup', this._onUp);
+    }
+
+    // Destination of a manual order, in field coordinates, or null.
+    orderTarget(kind, entity) {
+        const { ball, pendingThrow } = this.engine;
+        if (kind === 'fielder') {
+            if (!entity.active || !entity.manualTarget) return null;
+            if (entity.manualChase && ball.active) return ball.pos;
+            if (pendingThrow?.playType === 'manual' && pendingThrow.fielder === entity) return pendingThrow.target;
+            return entity.targetPos;
+        }
+        if (!entity.active || !entity.manual) return null;
+        return entity.path?.length ? entity.path[entity.path.length - 1] : entity.targetPos;
+    }
+
+    // Draws an arrow from each manually directed player to where they were sent.
+    update() {
+        const live = new Set();
+        const draw = (kind, entity) => {
+            const target = this.orderTarget(kind, entity);
+            if (!target) return;
+            const from = toWorld(entity.pos.x, entity.pos.y, 1);
+            const to = toWorld(target.x, target.y, 1);
+            const dir = to.clone().sub(from);
+            const length = dir.length();
+            if (length < 2) return;
+            let arrow = this.arrows.get(entity);
+            if (!arrow) {
+                const color = kind === 'fielder' ? 0xffdd00 : 0x00e5ff;
+                arrow = new THREE.ArrowHelper(dir.clone().normalize(), from, length, color, 5, 3);
+                arrow.line.material.depthTest = false;
+                arrow.cone.material.depthTest = false;
+                arrow.renderOrder = 10;
+                this.scene.add(arrow);
+                this.arrows.set(entity, arrow);
+            }
+            arrow.position.copy(from);
+            arrow.setDirection(dir.normalize());
+            arrow.setLength(length, Math.min(5, length), 3);
+            live.add(entity);
+        };
+        this.engine.fielders.forEach(f => draw('fielder', f));
+        this.engine.runners.forEach(r => draw('runner', r));
+        for (const [entity, arrow] of this.arrows) {
+            if (live.has(entity)) continue;
+            this.scene.remove(arrow);
+            arrow.dispose?.();
+            this.arrows.delete(entity);
+        }
     }
 
     dispose() {

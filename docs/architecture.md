@@ -231,7 +231,7 @@ Valid defensive outs are:
 2. A force out when a fielder carrying the ball reaches the forced base first.
 3. A tag when a ball-carrying fielder reaches an active runner within tag range.
 
-Catch and stop attempts incorporate the fielder's `catchAccuracy` attribute and relative ball speed; imperfect fielding can result in bobbles/loose balls. Force plays cleanly retire runners arriving late, while runners beating the throw remain safe on base. Second base coverage is dynamically split between SS and 2B according to hit direction to avoid fielder collisions. When the defense secures the ball and runners are settled at safe bases, the play transitions automatically to idle.
+Catch and stop attempts incorporate the fielder's `catchAccuracy` attribute and relative ball speed; both airborne and ground balls depend on `catchAccuracy` and ball speed (airborne balls are easier: roughly 40-97%). A miss leaves the ball rolling along the ground at reduced speed (it never pops back up), and that fielder gets only one attempt per pass: they cannot re-roll until the ball has left their 4.5 ft reach or 0.4 s has passed (so a stopped ball is still picked up), which prevents juggling. A fielder who catches a throw, or finishes a tag, has their destination cleared so they stay put with the ball. Force plays cleanly retire runners arriving late, while runners beating the throw remain safe on base. Second base coverage is dynamically split between SS and 2B according to hit direction to avoid fielder collisions. When the defense secures the ball and runners are settled at safe bases, the play transitions automatically to idle.
 
 Bases do not catch balls or record outs independently. A runner who is out stops moving and cannot later score. When all runners in the active play are out, the engine stops the play.
 
@@ -243,7 +243,9 @@ Bases do not catch balls or record outs independently. A runner who is out stops
 - If the selected fielder holds the ball, click another fielder to throw (`engine.directThrow`). The throw uses the normal throw speed/range/accuracy rules, so it can miss.
 - Click a runner, then a base within 10 ft of the click (`engine.directRunner`). `validRunnerBases` allows only later bases in order, plus the last safe base if the runner is between bases.
 
-Manually directed fielders get `manualTarget`: the AI no longer moves or auto-throws for them, they may field the ball without being the AI caller, and while holding the ball they tag runners in reach or force at a base (`updateManualPlays`). Manual runners skip the AI hold/advance check in `handleBaseReached`. Manual state resets when a scenario loads. Ticker events: `manual_move`, `manual_chase`, `manual_throw`, `manual_run`.
+Manually directed fielders get `manualTarget`: the AI no longer moves or auto-throws for them, they may field the ball without being the AI caller, and while holding the ball they tag runners in reach or force at a base (`updateManualPlays`). Manual runners skip the AI hold/advance check in `handleBaseReached`. Each directed player shows an arrow (yellow fielders, cyan runners) to their destination, drawn by `DirectionController.update()` each frame. Throws are received only if a fielder is within 4.5 ft of where the ball actually lands (`ball.throwTarget`, after accuracy error), not where it was aimed. Manual state resets when a scenario loads. Ticker events: `manual_move`, `manual_chase`, `manual_throw`, `manual_run`.
+
+A fielder who gives up the ball (throws it or has it taken) is tinted pale green (`0x99cc66`) to show they held it earlier; this is done by the `Fielder.hasBall` setter.
 
 ## Coordinate and Timing Conventions
 

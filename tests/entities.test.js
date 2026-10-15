@@ -106,3 +106,15 @@ describe('Fielder', () => {
     expect(fielder.pos.x).toBe(20);
   });
 });
+
+describe('Fielder ball-release tint', () => {
+  it('changes colour when a fielder gives up the ball', async () => {
+    const { Fielder } = await import('../src/sim/Fielder.js');
+    const fielder = new Fielder({ add() {} }, 'SS', { attributes: { speed: 50 } });
+    const original = fielder.mesh.material.color.getHex();
+    fielder.hasBall = true;
+    expect(fielder.mesh.material.color.getHex()).toBe(original);
+    fielder.hasBall = false;
+    expect(fielder.mesh.material.color.getHex()).toBe(0x99cc66);
+  });
+});

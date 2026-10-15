@@ -45,6 +45,17 @@ export class Fielder {
         this.moveSpeed = 10 + (speedAttribute / 100) * 10;
     }
 
+    get hasBall() {
+        return this._hasBall;
+    }
+
+    // Losing the ball tints the fielder pale green so it's clear they held it earlier.
+    set hasBall(value) {
+        const had = this._hasBall;
+        this._hasBall = Boolean(value);
+        if (had && !this._hasBall && this.active) this.mesh.material.color.setHex(0x99cc66);
+    }
+
     setPosition(x, y) {
         this.pos = { x, y };
         this.targetPos = null;

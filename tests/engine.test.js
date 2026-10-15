@@ -267,6 +267,58 @@ describe('SimulationEngine rules and decisions', () => {
     // With no runners in motion, play settles
     expect(engine.state).toBe('idle');
   });
+
+  const missSetup = z => {
+    const engine = bareEngine();
+    const fielder = {
+      active: true, isCaller: true, positionName: 'SS', pos: { x: 0, y: 50 },
+      player: { attributes: { catchAccuracy: 1 } },
+      mesh: { material: { color: { setHex: vi.fn() } } }, update: vi.fn(),
+    };
+    engine.fielders = [fielder];
+    engine.scenario = { hitType: 'grounder' };
+    engine.ball = new Ball(createScene());
+    engine.ball.active = true;
+    engine.ball.mode = 'loose';
+    engine.ball.pos = { x: 0, y: 50, z: z };
+    engine.ball.velocity = { x: 30, y: 0, z: 0 };
+    engine.state = 'playing';
+    return { engine, fielder };
+  };
+
+  it('a missed ground ball keeps rolling instead of popping up', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.999);
+    const { engine, fielder } = missSetup(0.5);
+    engine.update(0.001);
+    expect(engine.ball.mode).not.toBe('held');
+    expect(engine.ball.velocity.z).toBeLessThanOrEqual(0);
+    expect(fielder.missedBall).toBe(true);
+    vi.restoreAllMocks();
+  });
+
+  it('can miss airborne balls, with skill mattering', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.9);
+    const { engine } = missSetup(3);
+    engine.update(0.001);
+    expect(engine.ball.mode).not.toBe('held');
+    vi.restoreAllMocks();
+  });
+
+  it('does not re-roll the catch every frame while the ball stays in reach', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.999);
+    const { engine, fielder } = missSetup(0.5);
+    const events = [];
+    engine.onEvent = e => events.push(e.type);
+    engine.ball.velocity = { x: 0, y: 0, z: 0 };
+    for (let i = 0; i < 20; i++) engine.update(0.016);
+    expect(events.filter(t => t === 'ball_bobbled')).toHaveLength(1);
+    // A stopped ball must still be picked up once the retry delay passes.
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    for (let i = 0; i < 40; i++) engine.update(0.016);
+    expect(engine.ball.mode).toBe('held');
+    expect(fielder.missedBall).toBe(false);
+    vi.restoreAllMocks();
+  });
 });
 
 describe('SimulationEngine manual direction', () => {
@@ -328,5 +380,30 @@ describe('SimulationEngine manual direction', () => {
     const engine = bareEngine({ fielders: [fielder], runners: [runner] });
     engine.updateManualPlays();
     expect(runner.markOut).toHaveBeenCalled();
+  });
+});
+
+describe('SimulationEngine throw reception', () => {
+  it('receiver stops where they catch instead of carrying the ball off', () => {
+    const receiver = { active: true, pos: { x: 50, y: 50 }, positionName: '1B', targetPos: { x: 60, y: 60 }, canMoveWithBall: false, hasBall: false, mesh: { material: { color: { setHex: vi.fn() } } } };
+    const thrower = { active: true, pos: { x: 0, y: 0 }, positionName: 'SS', hasBall: true, mesh: { material: { color: { setHex: vi.fn() } } } };
+    const setCarrier = vi.fn();
+    const engine = bareEngine({ fielders: [receiver, thrower], ball: { ...bareEngine().ball, throwTarget: { x: 50, y: 50 }, setCarrier } });
+    engine.pendingThrow = { fielder: thrower, receiver, target: { x: 50, y: 50 }, playType: 'manual' };
+    engine.handleThrowComplete();
+    expect(receiver.targetPos).toBeNull();
+    expect(setCarrier).toHaveBeenCalledWith(receiver);
+  });
+
+
+  it('misses a throw that lands outside the receiver\'s reach even if aimed at them', () => {
+    const receiver = { active: true, pos: { x: 50, y: 50 }, positionName: '1B' };
+    const thrower = { active: true, pos: { x: 0, y: 0 }, positionName: 'SS' };
+    const engine = bareEngine({ fielders: [receiver, thrower] });
+    engine.ball.throwTarget = { x: 58, y: 50 };
+    const pending = { fielder: thrower, receiver, target: { x: 50, y: 50 } };
+    expect(engine.findBaseReceiver(pending)).toBeNull();
+    engine.ball.throwTarget = { x: 52, y: 50 };
+    expect(engine.findBaseReceiver(pending)).toBe(receiver);
   });
 });
