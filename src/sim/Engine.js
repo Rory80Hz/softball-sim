@@ -185,10 +185,35 @@ export class SimulationEngine {
 
                 const distToBall = Math.hypot(f.pos.x - this.ball.pos.x, f.pos.y - this.ball.pos.y, fielderZ - this.ball.pos.z);
                 if (distToBall < 4.5) { // 4.5ft realistic reach radius
-                    f.mesh.material.color.setHex(0x33ff33);
-                    this.handleBallCaught(f);
+                    const catchAcc = Number(f.player?.attributes?.catchAccuracy) || 55;
+                    const ballSpeed = Math.hypot(this.ball.velocity.x, this.ball.velocity.y, this.ball.velocity.z);
+                    // Base catch chance between 60% and 99%, scaled down by ball velocity
+                    const catchProb = Math.max(0.2, Math.min(0.99, (catchAcc / 100) * 0.95 + 0.1 - (ballSpeed / 200)));
+                    if (Math.random() < catchProb) {
+                        f.mesh.material.color.setHex(0x33ff33);
+                        this.handleBallCaught(f);
+                    } else {
+                        // Bobble / missed stop: ball deflects loosely
+                        this.ball.velocity.x *= 0.3;
+                        this.ball.velocity.y *= 0.3;
+                        this.ball.velocity.z = 2;
+                        if (this.onEvent) this.onEvent({ type: 'ball_bobbled', fielder: f });
+                    }
                     break;
                 }
+            }
+        }
+
+        // Check if play has settled: ball held and no runners in motion
+        this.checkPlaySettled();
+    }
+
+    checkPlaySettled() {
+        if (this.ball.mode === 'held' && !this.pendingThrow && !this.pendingTag) {
+            const runnersActiveMoving = this.runners.some(r => r.active && r.targetPos);
+            if (!runnersActiveMoving && this.state === 'playing') {
+                this.state = 'idle';
+                if (this.onEvent) this.onEvent({ type: 'play_stopped', reason: 'play_settled' });
             }
         }
     }
@@ -367,12 +392,18 @@ export class SimulationEngine {
     }
 
     baseCoverageTarget(position) {
+        const hitX = this.ball?.pos?.x ?? this.scenario?.hitTarget?.x ?? 0;
+        // In slowpitch softball, 2B and SS divide 2nd base coverage based on hit direction:
+        // SS covers 2B on hits to the right side (hitX > 0), 2B covers 2B on hits to the left/center (hitX <= 0)
+        let secondBaseCoverer = hitX > 0 ? 'SS' : '2B';
+
         const assignments = {
             '1B': 'first',
-            '2B': 'second',
-            SS: 'second',
+            '2B': secondBaseCoverer === '2B' ? 'second' : null,
+            SS: secondBaseCoverer === 'SS' ? 'second' : null,
             '3B': 'third',
             C: 'home',
+            P: 'home', // Pitcher can back up home if needed
         };
         const baseName = assignments[position];
         if (!baseName || !this.runnerNeedsBase(baseName)) return null;
@@ -455,10 +486,11 @@ export class SimulationEngine {
         fielder.mesh.material.color.setHex(0x33ff33);
         if (this.onEvent) this.onEvent({ type: 'ball_collected', fielder });
 
-        if (this.scenario.hitType !== 'grounder' && !this.ball.hasLanded) {
-            this.recordOut(this.runners[0], 'caught_fly');
-            this.runners.slice(1).forEach(runner => {
-                if (runner.active) runner.returnToBase();
+        if (this.scenario?.hitType !== 'grounder' && !this.ball.hasLanded) {
+            const batter = this.runners.find(r => r.role === 'batter') || this.runners[0];
+            this.recordOut(batter, 'caught_fly');
+            this.runners.filter(r => r !== batter && r.active).forEach(runner => {
+                runner.returnToBase();
             });
         }
 
@@ -471,6 +503,11 @@ export class SimulationEngine {
             this.pendingThrow = null;
             fielder.moveTo(runner.pos.x, runner.pos.y);
             if (this.onEvent) this.onEvent({ type: 'tag_attempt', fielder, runner });
+            return;
+        }
+
+        if (!play) {
+            // No active runners advancing, fielder holds the ball
             return;
         }
 
@@ -529,15 +566,9 @@ export class SimulationEngine {
             if (!safe) {
                 receiver.mesh.material.color.setHex(0x33ff33);
                 pendingThrow.runner.markOut();
-            } else if (pendingThrow.runner.hasPassedBase(pendingThrow.baseName)) {
-                pendingThrow.runner.returnToNamedBase(pendingThrow.baseName);
-                this.pendingTag = {
-                    runner: pendingThrow.runner,
-                    fielder: receiver,
-                    baseName: pendingThrow.baseName,
-                };
-                if (this.onEvent) this.onEvent({ type: 'tag_attempt', fielder: receiver, runner: pendingThrow.runner });
-                return;
+            } else {
+                // Runner reached the forced base safely!
+                receiver.mesh.material.color.setHex(0x33ff33);
             }
         } else if (pendingThrow.runner?.active && pendingThrow.playType === 'hold'
             && !pendingThrow.runner.hasPassedBase(pendingThrow.baseName)) {
@@ -687,10 +718,12 @@ export class SimulationEngine {
     }
 
     isForcedPlay(runner) {
+        if (runner.role === 'batter') return true;
         if (runner.currentBase === 'home') return true;
         return this.runners.some(other => (
             other !== runner && other.active && other.targetPos &&
-            other.baseNameAtPosition(other.targetPos) === runner.currentBase
+            (other.baseNameAtPosition(other.targetPos) === runner.currentBase ||
+             (other.role === 'batter' && runner.currentBase === 'first'))
         ));
     }
 

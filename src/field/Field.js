@@ -98,7 +98,7 @@ const THIRD_ANGLE = (3 * Math.PI) / 4; // 135 deg
 const CF_ANGLE = Math.PI / 2; // 90 deg
 
 function dottedLineStrip(points, width = 0.2, color = COLORS.chalk, y = 0.02) {
-    const material = new THREE.LineBasicMaterial({
+    const material = new THREE.LineDashedMaterial({
         color: color,
         linewidth: 2,
         dashSize: 2,

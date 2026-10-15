@@ -199,4 +199,72 @@ describe('SimulationEngine rules and decisions', () => {
     expect(ball.active).toBe(true);
     expect(ball.carrier).toBeNull();
   });
+
+  it('handles force play outs and safe completions correctly', () => {
+    const scene = createScene();
+    const engine = bareEngine();
+    const runner = new Runner(scene, { number: 3, attributes: { speed: 50 } });
+    runner.setPosition(BASES.home.x, BASES.home.y);
+    runner.runPath([BASES.first]);
+    
+    const thrower = {
+      pos: { x: 0, y: 0 },
+      hasBall: true,
+      active: true,
+      player: { attributes: { throwingTechnique: 55, throwAccuracy: 100, armStrength: 100 } },
+    };
+    const receiver = {
+      pos: { ...BASES.first },
+      active: true,
+      positionName: '1B',
+      moveSpeed: 15,
+      hasBall: false,
+      mesh: { material: { color: { setHex: vi.fn() } } },
+    };
+    engine.ball = new Ball(scene);
+    engine.fielders = [thrower, receiver];
+    engine.runners = [runner];
+    engine.pendingThrow = {
+      fielder: thrower,
+      runner,
+      target: { ...BASES.first },
+      forced: true,
+      playType: 'force',
+      baseName: 'first',
+    };
+
+    engine.pendingTag = null;
+
+    // Runner hasn't passed base -> out
+    engine.handleThrowComplete();
+    expect(runner.isOut).toBe(true);
+    expect(engine.pendingTag).toBeNull();
+  });
+
+  it('incorporates catchAccuracy and stops play when ball is held and runners settle', () => {
+    const scene = createScene();
+    const engine = bareEngine();
+    const fielder = {
+      active: true,
+      isCaller: true,
+      positionName: 'CF',
+      pos: { x: 0, y: 200 },
+      player: { attributes: { catchAccuracy: 100 } },
+      mesh: { material: { color: { setHex: vi.fn() } } },
+      update: vi.fn(),
+    };
+    engine.fielders = [fielder];
+    engine.ball = new Ball(scene);
+    engine.ball.active = true;
+    engine.ball.mode = 'hit';
+    engine.ball.pos = { x: 0, y: 200, z: 4 };
+    engine.state = 'playing';
+
+    // Fielder catches the ball
+    engine.update(0.016);
+    expect(engine.ball.mode).toBe('held');
+
+    // With no runners in motion, play settles
+    expect(engine.state).toBe('idle');
+  });
 });

@@ -146,6 +146,7 @@ export class ScenarioEditor {
             if (e.type === 'play_started') addTickerEvent(`Hit: ${e.hitType.replace('_', ' ')} toward the configured location`);
             if (e.type === 'fielder_call') addTickerEvent(`${e.fielder.positionName} calls the ball`);
             if (e.type === 'ball_collected') addTickerEvent(`${e.fielder.positionName} fields the ball`);
+            if (e.type === 'ball_bobbled') addTickerEvent(`${e.fielder.positionName} bobbles the ball!`);
             if (e.type === 'ball_thrown') addTickerEvent(`${e.fielder.positionName} throws to ${e.playType === 'force' ? 'the base' : 'contain the runner'}`);
             if (e.type === 'runner_cut_off') addTickerEvent(`Runner cut off at ${e.baseName}`);
             if (e.type === 'runner_held') addTickerEvent(`Runner holds at ${e.baseName}`);

@@ -231,6 +231,8 @@ Valid defensive outs are:
 2. A force out when a fielder carrying the ball reaches the forced base first.
 3. A tag when a ball-carrying fielder reaches an active runner within tag range.
 
+Catch and stop attempts incorporate the fielder's `catchAccuracy` attribute and relative ball speed; imperfect fielding can result in bobbles/loose balls. Force plays cleanly retire runners arriving late, while runners beating the throw remain safe on base. Second base coverage is dynamically split between SS and 2B according to hit direction to avoid fielder collisions. When the defense secures the ball and runners are settled at safe bases, the play transitions automatically to idle.
+
 Bases do not catch balls or record outs independently. A runner who is out stops moving and cannot later score. When all runners in the active play are out, the engine stops the play.
 
 ## Coordinate and Timing Conventions
