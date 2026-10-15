@@ -147,7 +147,8 @@ There is no global event bus. Engine events use an optional `engine.onEvent(even
 | Source | Action | Effect |
 | --- | --- | --- |
 | Scenario selectors | `change` | Rebuilds the configured scenario and repositions entities. |
-| Start button | click | Loads the current scenario, then calls `startPlay()`. |
+| Start button (softball icon) | click | Loads the current scenario, then calls `startPlay()`. |
+| Randomise button (dice icon) | click | Picks a random hit type, hit location and runners-on-base option (batter unchanged) and reloads the scenario; does not start the play. |
 | Pause button | click | Changes engine state to `paused`. |
 | Resume button | click | Changes engine state to `playing`. |
 | Reset button | click | Loads the current scenario without starting it. |

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BASES } from '../src/constants.js';
 import { ScenarioEditor } from '../src/ui/ScenarioEditor.js';
 
@@ -45,5 +45,18 @@ describe('ScenarioEditor scenario definitions', () => {
     ]);
     expect(definition.runnerPaths[1]).toEqual([BASES.second, BASES.third, BASES.home]);
     expect(definition.runnerPaths[3]).toEqual([BASES.home]);
+  });
+});
+
+describe('ScenarioEditor play controls', () => {
+  it('randomises each select to a random option', () => {
+    const selects = [3, 8, 5].map(count => ({ options: { length: count }, selectedIndex: 0 }));
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    editorDefinition().randomizeSelections(selects);
+    expect(selects.map(select => select.selectedIndex)).toEqual([2, 7, 4]);
+    Math.random.mockReturnValue(0);
+    editorDefinition().randomizeSelections(selects);
+    expect(selects.map(select => select.selectedIndex)).toEqual([0, 0, 0]);
+    vi.restoreAllMocks();
   });
 });
