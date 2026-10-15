@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { toWorld } from '../field/Field.js';
+import { advanceToward } from './physics.js';
 
 export class Fielder {
     constructor(scene, position, player) {
@@ -75,22 +76,16 @@ export class Fielder {
     }
 
     update(dt) {
-        if (!this.active || (this.hasBall && !this.canMoveWithBall) || !this.targetPos) return;
-
-        const dx = this.targetPos.x - this.pos.x;
-        const dy = this.targetPos.y - this.pos.y;
-        const dist = Math.hypot(dx, dy);
-
-        if (dist < 0.5) {
-            this.pos.x = this.targetPos.x;
-            this.pos.y = this.targetPos.y;
-            this.targetPos = null;
-        } else {
-            const step = Math.min(this.moveSpeed * dt, dist);
-            this.pos.x += (dx / dist) * step;
-            this.pos.y += (dy / dist) * step;
+        if (!this.active || (this.hasBall && !this.canMoveWithBall) || !this.targetPos) {
+            this.currentSpeed = 0;
+            return;
         }
-        
+
+        if (advanceToward(this, this.targetPos, dt, this.moveSpeed)) {
+            this.targetPos = null;
+            this.currentSpeed = 0;
+        }
+
         this.updateMesh();
     }
 

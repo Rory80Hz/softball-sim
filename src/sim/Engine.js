@@ -219,20 +219,21 @@ export class SimulationEngine {
         });
     }
 
-    // Manually-controlled fielders holding the ball tag runners and force at bases themselves.
-    updateManualPlays() {
-        this.fielders.filter(f => f.active && f.hasBall && f.manualTarget).forEach(fielder => {
-            this.runners.filter(r => r.active && !r.isOut).forEach(runner => {
-                if (runner.baseNameAtPosition(runner.pos)) return;
-                const reach = Math.hypot(fielder.pos.x - runner.pos.x, fielder.pos.y - runner.pos.y);
-                const heading = runner.targetPos ? runner.baseNameAtPosition(runner.targetPos) : null;
-                const atBase = heading && Math.hypot(fielder.pos.x - BASES[heading].x, fielder.pos.y - BASES[heading].y) <= 3;
-                const forcedOut = atBase && !runner.isReturning && this.isForcedPlay(runner);
-                if (reach <= 4.5 || forcedOut) {
-                    fielder.mesh.material.color.setHex(0x33ff33);
-                    runner.markOut();
-                }
-            });
+    // Hands players back to the AI once their manual order is finished.
+    releaseFinishedManualOrders() {
+        const throwing = this.pendingThrow?.playType === 'manual' ? this.pendingThrow : null;
+        this.fielders.forEach(f => {
+            if (!f.manualTarget) return;
+            const inThrow = throwing && (throwing.fielder === f || throwing.receiver === f);
+            const chasing = f.manualChase && this.ball.active && ['hit', 'loose'].includes(this.ball.mode);
+            if (inThrow || chasing || f.hasBall) return;
+            if (f.manualChase || !f.targetPos) {
+                f.manualTarget = false;
+                f.manualChase = false;
+            }
+        });
+        this.runners.forEach(r => {
+            if (r.manual && (!r.active || !r.targetPos)) r.manual = false;
         });
     }
 
@@ -269,6 +270,7 @@ export class SimulationEngine {
         this.ball.update(dt);
         this.runners.forEach(r => r.update(dt));
         this.updateManualFielders();
+        this.releaseFinishedManualOrders();
         this.updateFielderAI();
 
         
@@ -278,7 +280,6 @@ export class SimulationEngine {
         });
         if (this.ball.carrier) this.ball.setCarrier(this.ball.carrier);
         this.updateTagging();
-        this.updateManualPlays();
 
         // Simple check: did a fielder reach the ball?
         if (this.ball.active && ['hit', 'loose'].includes(this.ball.mode)) {
@@ -307,6 +308,9 @@ export class SimulationEngine {
                         : Math.max(0.2, Math.min(0.99, (catchAcc / 100) * 0.95 + 0.1 - (ballSpeed / 200)));
                     if (Math.random() < catchProb) {
                         f.mesh.material.color.setHex(0x33ff33);
+                        // A directed fielder who gets the ball is done with the order; the AI takes over.
+                        f.manualTarget = false;
+                        f.manualChase = false;
                         this.handleBallCaught(f);
                     } else {
                         // Missed ground ball: it skips past along the ground
@@ -679,9 +683,12 @@ export class SimulationEngine {
         this.ball.setCarrier(receiver);
 
         if (pendingThrow.playType === 'manual') {
-            receiver.canMoveWithBall = true;
             receiver.mesh.material.color.setHex(0x33ff33);
             if (this.onEvent) this.onEvent({ type: 'ball_collected', fielder: receiver });
+            pendingThrow.fielder.manualTarget = false;
+            receiver.manualTarget = false;
+            receiver.manualChase = false;
+            if (this.outs < 3) this.throwAtNextRunner(receiver);
             return;
         }
 

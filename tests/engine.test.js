@@ -374,12 +374,35 @@ describe('SimulationEngine manual direction', () => {
     expect(between.returnToBase).toHaveBeenCalled();
   });
 
-  it('lets a manual fielder with the ball tag a runner between bases', () => {
-    const fielder = makeFielder({ x: 30, y: 60 }, { hasBall: true, manualTarget: true });
-    const runner = makeRunner('first', { pos: { x: 31, y: 61 }, markOut: vi.fn() });
-    const engine = bareEngine({ fielders: [fielder], runners: [runner] });
-    engine.updateManualPlays();
-    expect(runner.markOut).toHaveBeenCalled();
+  it('hands fielders and runners back to the AI when their order is finished', () => {
+    const arrived = makeFielder({ x: 0, y: 50 }, { manualTarget: true, targetPos: null });
+    const enRoute = makeFielder({ x: 0, y: 50 }, { manualTarget: true, targetPos: { x: 9, y: 9 } });
+    const thrower = makeFielder({ x: 0, y: 50 }, { manualTarget: true });
+    const receiver = makeFielder({ x: 0, y: 50 }, { manualTarget: true });
+    const chaser = makeFielder({ x: 0, y: 50 }, { manualTarget: true, manualChase: true });
+    const done = makeRunner('second', { manual: true, targetPos: null });
+    const running = makeRunner('first', { manual: true, targetPos: { x: 1, y: 1 } });
+    const engine = bareEngine({
+      fielders: [arrived, enRoute, thrower, receiver, chaser],
+      runners: [done, running],
+      ball: { ...bareEngine().ball, active: true, mode: 'loose' },
+      pendingThrow: { playType: 'manual', fielder: thrower, receiver },
+    });
+    engine.releaseFinishedManualOrders();
+    expect(arrived.manualTarget).toBe(false);
+    expect(enRoute.manualTarget).toBe(true);
+    expect(thrower.manualTarget).toBe(true);
+    expect(receiver.manualTarget).toBe(true);
+    expect(chaser.manualTarget).toBe(true);
+    expect(done.manual).toBe(false);
+    expect(running.manual).toBe(true);
+
+    engine.pendingThrow = null;
+    engine.ball.mode = 'held';
+    engine.releaseFinishedManualOrders();
+    expect(thrower.manualTarget).toBe(false);
+    expect(receiver.manualTarget).toBe(false);
+    expect(chaser.manualTarget).toBe(false);
   });
 });
 

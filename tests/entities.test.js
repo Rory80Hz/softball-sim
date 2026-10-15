@@ -86,7 +86,8 @@ describe('Fielder', () => {
     fielder.setPosition(0, 0);
     fielder.moveTo(10, 0);
     fielder.update(0.25);
-    expect(fielder.pos.x).toBeCloseTo(5);
+    expect(fielder.pos.x).toBeGreaterThan(0);
+    expect(fielder.pos.x).toBeLessThan(0.25 * fielder.moveSpeed); // still accelerating
     fielder.update(1);
     fielder.update(0.1);
     expect(fielder.pos).toEqual({ x: 10, y: 0 });
@@ -104,6 +105,37 @@ describe('Fielder', () => {
     fielder.moveTo(20, 0, true);
     fielder.update(1);
     expect(fielder.pos.x).toBe(20);
+  });
+});
+
+describe('Player acceleration', () => {
+  it('ramps up to top speed instead of starting at full pace', () => {
+    const fielder = new Fielder(createScene(), 'SS', player());
+    fielder.setPosition(0, 0);
+    fielder.moveTo(100, 0);
+    const steps = [];
+    for (let i = 0; i < 40; i++) {
+      const before = fielder.pos.x;
+      fielder.update(0.016);
+      steps.push((fielder.pos.x - before) / 0.016);
+    }
+    expect(steps[0]).toBeLessThan(fielder.moveSpeed * 0.2);
+    expect(steps[39]).toBeCloseTo(fielder.moveSpeed, 0);
+    steps.forEach((v, i) => { if (i) expect(v).toBeGreaterThanOrEqual(steps[i - 1] - 1e-9); });
+  });
+
+  it('never jumps more than one frame step when arriving', () => {
+    const fielder = new Fielder(createScene(), 'SS', player());
+    fielder.setPosition(0, 0);
+    fielder.moveTo(30, 0);
+    let maxMove = 0;
+    for (let i = 0; i < 400 && fielder.targetPos; i++) {
+      const before = fielder.pos.x;
+      fielder.update(0.016);
+      maxMove = Math.max(maxMove, fielder.pos.x - before);
+    }
+    expect(fielder.pos.x).toBe(30);
+    expect(maxMove).toBeLessThanOrEqual(fielder.moveSpeed * 0.016 + 1e-9);
   });
 });
 

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { toWorld } from '../field/Field.js';
 import { BASES } from '../constants.js';
+import { advanceToward } from './physics.js';
 
 export class Runner {
     constructor(scene, player, role = 'runner') {
@@ -94,15 +95,12 @@ export class Runner {
             return;
         }
 
-        if (!this.active || !this.targetPos) return;
+        if (!this.active || !this.targetPos) {
+            this.currentSpeed = 0;
+            return;
+        }
 
-        const dx = this.targetPos.x - this.pos.x;
-        const dy = this.targetPos.y - this.pos.y;
-        const dist = Math.hypot(dx, dy);
-
-        if (dist < 0.5) {
-            this.pos.x = this.targetPos.x;
-            this.pos.y = this.targetPos.y;
+        if (advanceToward(this, this.targetPos, dt, this.moveSpeed)) {
             const reachedBase = this.baseNameAtPosition(this.targetPos);
             const reachedHome = reachedBase === 'home';
             if (reachedBase) {
@@ -129,12 +127,8 @@ export class Runner {
                     if (this.onScore) this.onScore(this);
                 }
             }
-        } else {
-            const step = Math.min(this.moveSpeed * dt, dist);
-            this.pos.x += (dx / dist) * step;
-            this.pos.y += (dy / dist) * step;
         }
-        
+
         this.updateMesh();
     }
 
