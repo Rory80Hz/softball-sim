@@ -213,6 +213,8 @@ Starting always reloads the selected scenario first, so stale entities and play 
 
 `Ball.hit()` derives launch direction and speed from hit type, target, batting contact, and batting power. Contact controls target variance; power increases horizontal speed for grounders and line drives. Airborne balls are integrated under gravity. On reaching ground level, a ball is marked landed and its vertical velocity is stopped. Ground friction then decelerates it until it stops.
 
+A batted ball that lands from the air keeps only 30% of its horizontal speed (`LANDING_SPEED_RETAINED` in `Ball.js`) before ground friction takes over, so fly balls and bloopers stop shortly after landing instead of rolling on.
+
 A caught airborne ball can retire the batter. A grounder, or any ball already marked landed, cannot later be treated as a caught fly. When a fielder throws, possession is released immediately and the ball follows a finite ballistic throw path. A failed or missed throw becomes loose rather than being silently received by a base.
 
 ### Defensive AI

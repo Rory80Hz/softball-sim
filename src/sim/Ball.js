@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { toWorld } from '../field/Field.js';
 
+const LANDING_SPEED_RETAINED = 0.3;
+
 export class Ball {
     constructor(scene) {
         this.mesh = new THREE.Mesh(
@@ -179,6 +181,11 @@ export class Ball {
             this.pos.z += this.velocity.z * dt;
             
             if (this.pos.z <= 0) {
+                // A batted ball landing from the air loses most of its forward speed to the turf.
+                if (!this.hasLanded && this.mode === 'hit') {
+                    this.velocity.x *= LANDING_SPEED_RETAINED;
+                    this.velocity.y *= LANDING_SPEED_RETAINED;
+                }
                 this.pos.z = 0;
                 this.velocity.z = 0; // stop bouncing for now, just roll
                 this.hasLanded = true;

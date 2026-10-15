@@ -39,6 +39,22 @@ describe('Ball', () => {
     expect(ball.mode).toBe('loose');
   });
 
+  it('sheds most forward speed when a fly ball lands, so it does not roll far', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    const ball = new Ball(createScene());
+    ball.hit(0, 200, 'flyball', { battingPower: 55, battingContact: 100 });
+    let landingSpeed = null;
+    for (let i = 0; i < 2000 && ball.active; i++) {
+      const before = ball.hasLanded;
+      ball.update(0.01);
+      if (!before && ball.hasLanded) landingSpeed = Math.hypot(ball.velocity.x, ball.velocity.y);
+      if (ball.hasLanded && Math.hypot(ball.velocity.x, ball.velocity.y) === 0) break;
+    }
+    expect(landingSpeed).toBeLessThan(25);
+    expect(ball.pos.y).toBeLessThan(215);
+    vi.restoreAllMocks();
+  });
+
   it('transfers possession and releases a loose ball', () => {
     const scene = createScene();
     const ball = new Ball(scene);
